@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "description": "Phase 0 performance budget (T-204), enforced by scripts/bench-gate.mjs (verify.sh full). Scenario: solid cantilever per grid, tol 1e-4, single thread; warm = set_solid(3x3 top-surface carve) + warm-started solve, median of 10 carves; load = setup + cold solve. Times in ms. Results and analysis: docs/perf-results.md. Edit limits by hand; refresh `baseline` with `node scripts/bench-gate.mjs --record`.",
+  "tol": 0.0001,
+  "requireMultigrid": true,
+  "limits": [
+    {
+      "name": "W1 warm carve",
+      "target": "wasm",
+      "grid": "24x8x4",
+      "precond": "multigrid",
+      "metric": "warmMedianMs",
+      "max": 100
+    },
+    {
+      "name": "W2 warm carve",
+      "target": "wasm",
+      "grid": "32x8x8",
+      "precond": "multigrid",
+      "metric": "warmMedianMs",
+      "max": 500
+    },
+    {
+      "name": "W3 warm carve",
+      "target": "wasm",
+      "grid": "32x12x12",
+      "precond": "multigrid",
+      "metric": "warmMedianMs",
+      "max": 500
+    },
+    {
+      "name": "W4/W5 warm carve (Gate 0)",
+      "target": "wasm",
+      "grid": "40x12x12",
+      "precond": "multigrid",
+      "metric": "warmMedianMs",
+      "max": 500
+    },
+    {
+      "name": "W4/W5 worst carve",
+      "target": "wasm",
+      "grid": "40x12x12",
+      "precond": "multigrid",
+      "metric": "warmMaxMs",
+      "max": 500
+    },
+    {
+      "name": "W4/W5 stage load",
+      "target": "wasm",
+      "grid": "40x12x12",
+      "precond": "multigrid",
+      "metric": "loadMs",
+      "max": 1000
+    }
+  ],
+  "regression": {
+    "description": "Fail when a metric exceeds baseline x ratio AND baseline + min-abs. Iterations are compared on any machine (deterministic); times only when the CPU model equals the baseline's.",
+    "iterMetrics": ["coldIters", "warmMedianIters"],
+    "iterRatio": 1.25,
+    "minAbsIters": 2,
+    "timeMetrics": ["coldMs", "warmMedianMs"],
+    "timeRatio": 2.0,
+    "minAbsMs": 5
+  },
+  "baseline": null
+}
