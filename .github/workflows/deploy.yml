@@ -1,0 +1,132 @@
+# Ship the game to Cloudflare (Workers + Static Assets) with the cf CLI — manual trigger only:
+# Actions → deploy → Run workflow. One-time setup and local equivalents: deploy/README.md.
+#
+# Secrets: CLOUDFLARE_API_TOKEN (Account › Workers Scripts › Edit; + Zone › Workers Routes ›
+# Edit only with a custom domain) and CLOUDFLARE_ACCOUNT_ID. Optional repository variable
+# SITE_URL (e.g. https://carve.example.com) is checked after the deploy as well.
+name: deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Build and validate only (cf deploy --dry-run, nothing is uploaded)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-cloudflare
+  cancel-in-progress: false # never cut an upload in half; a second run waits
+
+env:
+  DO_NOT_TRACK: '1' # cf telemetry off (also honoured by the Vite plugin)
+  CF_SEND_TELEMETRY: 'false'
+  WASM_PACK_VERSION: 0.15.0
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: ${{ inputs.dry_run && 'dry-run' || 'production' }}
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Rust toolchain (from rust-toolchain.toml, incl. wasm32-unknown-unknown)
+        run: |
+          rustup show active-toolchain || rustup toolchain install
+          rustup target add wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: wasm-pack ${{ env.WASM_PACK_VERSION }}
+        run: |
+          dir="$RUNNER_TEMP/wasm-pack"
+          mkdir -p "$dir"
+          curl -sSfL "https://github.com/rustwasm/wasm-pack/releases/download/v${WASM_PACK_VERSION}/wasm-pack-v${WASM_PACK_VERSION}-x86_64-unknown-linux-musl.tar.gz" \
+            | tar -xz -C "$dir" --strip-components=1
+          echo "$dir" >> "$GITHUB_PATH"
+          "$dir/wasm-pack" --version
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24 # cf needs >= 22.18
+          cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            deploy/pnpm-lock.yaml
+
+      # Two independent pnpm projects: the game workspace and deploy/ (cf + Vite plugin + workerd).
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --dir deploy install --frozen-lockfile
+
+      # Game: wasm-pack (--release --target web → crates/fem-wasm/pkg), then vite build →
+      # apps/web/dist (incl. public/_headers and the hashed .wasm).
+      - run: pnpm build
+
+      # cf build delegates to `vite build` in deploy/ (Cloudflare Vite plugin): apps/web/dist →
+      # deploy/.cloudflare/output/v0 (assets-only Worker). No credentials needed.
+      - name: cf build
+        run: pnpm --dir deploy exec cf build --mode production
+
+      - name: Check build (_headers, limits, Build Output) and serve it locally in workerd
+        # TODO(after T-205 imports fem-wasm in the app): add --require-wasm.
+        run: |
+          pnpm --dir deploy test
+          node deploy/check.mjs --serve
+
+      - name: cf deploy --dry-run (validates, uploads nothing)
+        run: pnpm --dir deploy exec cf deploy --prebuilt --mode production --dry-run
+
+      - name: cf deploy
+        id: deploy
+        if: ${{ !inputs.dry_run }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          MESSAGE: ${{ github.sha }} (${{ github.ref_name }})
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error::Set the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID secrets (deploy/README.md)."
+            exit 1
+          fi
+          log="$RUNNER_TEMP/cf-deploy.log"
+          pnpm --dir deploy exec cf deploy --prebuilt --mode production --message "$MESSAGE" 2>&1 | tee "$log"
+          if url=$(node deploy/check.mjs --find-url "$log"); then
+            echo "url=$url" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::No *.workers.dev URL in the cf deploy output; live check uses vars.SITE_URL only."
+          fi
+
+      - name: Check the live site (COOP/COEP, wasm MIME)
+        if: ${{ !inputs.dry_run }}
+        env:
+          URL: ${{ steps.deploy.outputs.url }}
+          SITE_URL: ${{ vars.SITE_URL }}
+        run: |
+          checked=0
+          for u in "$URL" "$SITE_URL"; do
+            [ -n "$u" ] || continue
+            node deploy/check.mjs --url "$u" --retries 10
+            checked=1
+          done
+          [ "$checked" = 1 ] || echo "::warning::Live site not checked: no URL found and vars.SITE_URL unset."
+
+      - name: Summary
+        if: ${{ always() && steps.deploy.outputs.url != '' }}
+        env:
+          URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          {
+            echo "### Cloudflare: deployed"
+            echo "- $URL"
+            echo "- commit \`$GITHUB_SHA\` on \`$GITHUB_REF_NAME\`"
+          } >> "$GITHUB_STEP_SUMMARY"

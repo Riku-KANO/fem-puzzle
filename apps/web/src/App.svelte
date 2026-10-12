@@ -5,6 +5,7 @@
   import type { BrushSize } from './game/brush.ts';
   import { startGame, type GameSession } from './game/boot.ts';
   import type { Axis } from './game/grid.ts';
+  import { submitGate } from './game/judge/index.ts';
   import { listStages, pickInitialStage } from './game/stages.ts';
   import ThinWallBadge from './game/thickness/ThinWallBadge.svelte';
   import { ThinWallHud } from './game/thickness/thinWallHud.svelte.ts';
@@ -16,10 +17,14 @@
   import StagePanel from './ui/StagePanel.svelte';
   import Toast from './ui/Toast.svelte';
   import Toolbar from './ui/Toolbar.svelte';
+  import ResultScreen from './ui/result/ResultScreen.svelte';
+  import { ResultSession } from './ui/result/resultSession.svelte.ts';
   import { ViewSettings } from './ui/views/viewSettings.svelte.ts';
 
   const { stage } = pickInitialStage(listStages(), window.location.search);
   const hud = new HudState();
+  const result = new ResultSession(); // T-304: result.onClear = (c) => progress.recordClear(c)
+  const gate = $derived(submitGate(hud));
   const thinWalls = new ThinWallHud();
   let viewport: HTMLDivElement;
   let game = $state.raw<GameSession | null>(null);
@@ -29,6 +34,7 @@
     game = startGame(viewport, stage, hud, hud.palette);
     const detachThinWalls = thinWalls.attach(game.scene);
     return () => {
+      result.dispose();
       detachThinWalls();
       game?.dispose();
       game = null;
@@ -49,6 +55,11 @@
       hud.viewMode = mode;
     },
     sectionAxis: (axis: Axis) => views.chooseAxis(axis, game?.scene.views.facingFlip(axis) ?? false),
+    submit: () => {
+      if (!game) return;
+      hud.viewMode = 'normal'; // the result screen shows the whole part, not a section / X-ray
+      result.open(game, hud);
+    },
   };
 
   // section / X-ray: push the view to the scene whenever the mode or its settings change
@@ -86,6 +97,11 @@
       <StagePanel title={stage.title} world={stage.world} targets={stage.targets} {hud} />
       <ThinWallBadge hud={thinWalls} />
     </div>
+    {#if result.submission}
+      <div class="result-slot">
+        <ResultScreen session={result} targets={stage.targets} current={hud.resultCurrent} />
+      </div>
+    {/if}
     <div class="right">
       <SidePanel
         {hud}
@@ -97,7 +113,16 @@
     </div>
     <div class="bottom">
       <Toast {hud} />
-      <Toolbar {hud} onBrush={actions.brush} onUndo={actions.undo} onRedo={actions.redo} />
+      <Toolbar
+        {hud}
+        onBrush={actions.brush}
+        onUndo={actions.undo}
+        onRedo={actions.redo}
+        canSubmit={gate.enabled && !result.submission}
+        submitTitle={gate.reason}
+        submitHint={gate.problem}
+        onSubmit={actions.submit}
+      />
     </div>
   </div>
 </main>
@@ -128,6 +153,13 @@
     position: absolute;
     top: 16px;
     left: 16px;
+  }
+  .result-slot {
+    /* over the stage panel (the card repeats its volume / targets), leaves the model visible */
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    z-index: 1;
   }
   .right {
     position: absolute;
