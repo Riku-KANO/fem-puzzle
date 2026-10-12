@@ -12,7 +12,9 @@
 pub mod ascii;
 pub mod calibrate;
 pub mod cli;
+pub mod commands;
 pub mod design;
+pub mod driver;
 pub mod filter;
 pub mod layout;
 pub mod oc;
