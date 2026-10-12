@@ -129,13 +129,28 @@ impl<'a> Simp<'a> {
         }
     }
 
-    /// Uniform starting design with the requested volume.
+    /// The fixed part of the physical volume, `Σ_keep dv_j + |keep|`:
+    /// `V(x) = Σ_free dv_j x_j + fixed_volume()` (keep variables are 1).
+    fn fixed_volume(&self) -> f64 {
+        let l = self.layout;
+        (0..l.n())
+            .filter(|&e| l.keep[e])
+            .map(|e| self.dv[e])
+            .sum::<f64>()
+            + l.keep_count() as f64
+    }
+
+    /// Uniform starting design whose *physical* volume is exactly the requested one
+    /// (filtering next to keep cells raises densities, so the uniform value is solved for).
     pub fn initial_design(&self, volfrac: f64) -> Vec<f64> {
         let l = self.layout;
-        let nd = l.domain_count() as f64;
-        let nk = l.keep_count() as f64;
-        let v = if self.n_free > 0 {
-            ((volfrac * nd - nk) / self.n_free as f64).clamp(0.0, 1.0)
+        let target = volfrac * l.domain_count() as f64;
+        let dv_free: f64 = (0..l.n())
+            .filter(|&e| self.free[e])
+            .map(|e| self.dv[e])
+            .sum();
+        let v = if dv_free > 0.0 {
+            ((target - self.fixed_volume()) / dv_free).clamp(0.0, 1.0)
         } else {
             0.0
         };
@@ -171,13 +186,7 @@ impl<'a> Simp<'a> {
         }
         let nd = l.domain_count() as f64;
         let target = opts.volfrac * nd;
-        // V(x) = Σ_free dv_j x_j + Σ_keep dv_j + |keep|
-        let fixed: f64 = (0..n)
-            .filter(|&e| l.keep[e])
-            .map(|e| self.dv[e])
-            .sum::<f64>()
-            + l.keep_count() as f64;
-        let free_target = target - fixed;
+        let free_target = target - self.fixed_volume();
 
         let mut x = match x0 {
             Some(x0) if x0.len() == n => x0.to_vec(),
