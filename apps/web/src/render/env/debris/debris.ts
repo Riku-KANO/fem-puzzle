@@ -175,6 +175,7 @@ export class DebrisFx {
    */
   private warmFrames = 0;
   private ghostsWarm = false;
+  private slowMarks = 0;
   private readonly warmColor = new THREE.Color(1, 1, 1);
   private warmChunk: THREE.Mesh | null = null;
 
@@ -536,7 +537,8 @@ export class DebrisFx {
       steps++;
       this.acc -= DT;
       if (!Number.isFinite(ms)) return;
-      if (ms > 4) measure('debris:slow-step', performance.now() - ms, performance.now());
+      // timeline marks for profiling, bounded so a long session does not grow the buffer
+      if (ms > 4 && this.slowMarks++ < 100) measure('debris:slow-step', performance.now() - ms, performance.now());
       const s = this.stats;
       s.stepMsAvg = s.stepMsAvg * 0.95 + ms * 0.05;
       s.stepMsMax = Math.max(s.stepMsMax, ms);
