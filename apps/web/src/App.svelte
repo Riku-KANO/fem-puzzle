@@ -5,6 +5,8 @@
   import type { BrushSize } from './game/brush.ts';
   import { startGame, type GameSession } from './game/boot.ts';
   import { listStages, pickInitialStage } from './game/stages.ts';
+  import ThinWallBadge from './game/thickness/ThinWallBadge.svelte';
+  import { ThinWallHud } from './game/thickness/thinWallHud.svelte.ts';
   import type { PaletteId } from './render/colormap.ts';
   import { HudState, type ViewMode } from './ui/hudState.svelte.ts';
   import { shortcutFor } from './ui/shortcuts.ts';
@@ -15,12 +17,15 @@
 
   const { stage } = pickInitialStage(listStages(), window.location.search);
   const hud = new HudState();
+  const thinWalls = new ThinWallHud();
   let viewport: HTMLDivElement;
   let game: GameSession | null = null;
 
   onMount(() => {
     game = startGame(viewport, stage, hud, hud.palette);
+    const detachThinWalls = thinWalls.attach(game.scene);
     return () => {
+      detachThinWalls();
       game?.dispose();
       game = null;
     };
@@ -67,6 +72,7 @@
   <div class="hud">
     <div class="top-left">
       <StagePanel title={stage.title} world={stage.world} targets={stage.targets} {hud} />
+      <ThinWallBadge hud={thinWalls} />
     </div>
     <div class="right">
       <SidePanel {hud} onPalette={actions.palette} onViewMode={actions.viewMode} />

@@ -5,6 +5,7 @@ import { GameController, MESSAGES, type HudModel, type RemovalCause, type ViewPo
 import { buildDemoStage } from '../src/game/demoStage.ts';
 import { cellIndex, makeGrid } from '../src/game/grid.ts';
 import type { VoxelHit } from '../src/render/picking.ts';
+import { releaseRenderer } from '../src/render/scene.ts';
 import { SolverClient, type WorkerPort } from '../src/solver/client.ts';
 import { SolverHost } from '../src/solver/host.ts';
 import { MockBackend } from '../src/solver/mockBackend.ts';
@@ -63,10 +64,9 @@ const newHud = (): HudModel => ({
   toast: null,
 });
 
-function setup(stage: Stage) {
+function setup(stage: Stage, hud: HudModel = newHud()) {
   const port = new LoopbackPort();
   const view = new FakeView();
-  const hud = newHud();
   const state = new CarveState(stage);
   const controller = new GameController(state, new SolverClient(port), view, hud);
   const settle = async () => {
@@ -194,5 +194,134 @@ describe('GameController (with the worker host + mock backend in-process)', () =
     expect(hud.solidCount).toBe(30);
     expect(hud.canUndo).toBe(false);
     expect(hud.canRedo).toBe(false);
+  });
+  /** carve (6,0), (8,0), (7,1) in one drag: isolates (7,0) */
+  function carveIsland(controller: GameController, stage: Stage): void {
+    controller.strokeStart(hitZ(stage, [6, 0, 0]));
+    controller.strokeMove(hitZ(stage, [8, 0, 0]));
+    controller.strokeMove(hitZ(stage, [7, 1, 0]));
+    controller.strokeEnd();
+  }
+
+  // T-311 #1: debris arriving during a press that carves nothing (e.g. on empty space)
+  it('debris during a no-op press joins the carve that caused it, not a new entry', async () => {
+    const stage = plateStage();
+    const { state, view, controller, settle, port } = setup(stage);
+    await settle();
+    // an older entry, undone, so there is something on the redo stack
+    controller.strokeStart(hitZ(stage, [2, 2, 0]));
+    controller.strokeEnd();
+    controller.undo();
+    await settle();
+    expect(state.history.redoDepth).toBe(1);
+
+    carveIsland(controller, stage);
+    controller.flush(); // carve sent; result not yet processed
+    controller.strokeStart(null); // press on empty space, held while the result arrives
+    await port.host.idle(); // result: (7,0) floating → debris
+    const island = cellIndex(state.grid, 7, 0, 0);
+    expect(state.solid[island]).toBe(0);
+    expect(view.removed.at(-1)).toEqual({ cells: [island], cause: 'floating' });
+    expect(controller.strokeEnd()).toBeNull();
+    expect(state.history.undoDepth).toBe(1); // no debris-only entry
+    expect(state.history.peek()!.floating).toEqual([island]);
+
+    controller.undo(); // restores the carve *and* its debris
+    for (const [x, y] of [
+      [6, 0],
+      [8, 0],
+      [7, 1],
+      [7, 0],
+    ] as const) {
+      expect(state.solid[cellIndex(state.grid, x, y, 0)], `${x},${y}`).toBe(1);
+    }
+    expect(state.solidCount).toBe(30);
+  });
+
+  it('a press that carves nothing keeps the redo stack', async () => {
+    const stage = plateStage();
+    const { state, controller, settle } = setup(stage);
+    await settle();
+    controller.strokeStart(hitZ(stage, [4, 1, 0]));
+    controller.strokeEnd();
+    controller.undo();
+    controller.strokeStart(null);
+    controller.strokeEnd();
+    controller.strokeStart(hitZ(stage, [0, 1, 0])); // protected: carves nothing
+    controller.strokeEnd();
+    expect(state.canRedo).toBe(true);
+  });
+
+  // T-311 #3: the `!batcher.pending` guard in onResult
+  it('no debris when an undo is pending: the result describes an outdated state', async () => {
+    const stage = plateStage();
+    const { state, view, controller, settle, port } = setup(stage);
+    await settle();
+    carveIsland(controller, stage);
+    controller.flush(); // seq 1 in flight: (7,0) will be reported floating
+    controller.undo(); // reconnects (7,0) before the result arrives (diff not sent yet)
+    await port.host.idle();
+    const island = cellIndex(state.grid, 7, 0, 0);
+    expect(state.solid[island]).toBe(1);
+    expect(view.removed.filter((r) => r.cause === 'floating')).toEqual([]);
+    expect(state.history.undoDepth).toBe(0);
+    expect(state.history.redoDepth).toBe(1);
+    expect(state.history.peek()).toBeUndefined();
+    await settle(); // the restore is sent and solved: still nothing floating
+    expect(state.solidCount).toBe(30);
+    expect(view.removed.filter((r) => r.cause === 'floating')).toEqual([]);
+  });
+
+  // T-311 #4: a new session must not inherit HUD values from the previous stage
+  it('the constructor resets every HUD field', () => {
+    const stale: HudModel = {
+      volumeFraction: 0.3,
+      solidCount: 5,
+      canUndo: true,
+      canRedo: true,
+      brush: 5,
+      solving: false,
+      iteration: 99,
+      relResidual: 1e-3,
+      backend: 'wasm',
+      maxUtilization: 2,
+      loadsConnected: false,
+      converged: true,
+      resultCurrent: true,
+      error: 'old',
+      toast: { text: 'old', id: 7 },
+    };
+    setup(plateStage(), stale);
+    expect(stale).toEqual({
+      volumeFraction: 1,
+      solidCount: 30,
+      canUndo: false,
+      canRedo: false,
+      brush: 1,
+      solving: true,
+      iteration: 0,
+      relResidual: Number.NaN,
+      backend: null,
+      maxUtilization: null,
+      loadsConnected: true,
+      converged: false,
+      resultCurrent: false,
+      error: null,
+      toast: null,
+    });
+  });
+});
+
+// T-311 #6 — lives here because T-311 owns only this and host.test.ts (the session teardown
+// that GameSession.dispose → StageScene.dispose performs).
+describe('StageScene teardown', () => {
+  it('releases the WebGL context before removing the canvas', () => {
+    const calls: string[] = [];
+    releaseRenderer({
+      dispose: () => calls.push('dispose'),
+      forceContextLoss: () => calls.push('forceContextLoss'),
+      domElement: { remove: () => calls.push('remove') },
+    });
+    expect(calls).toEqual(['dispose', 'forceContextLoss', 'remove']);
   });
 });

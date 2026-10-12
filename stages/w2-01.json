@@ -1,4 +1,10 @@
 {
+  "benchmark": {
+    "maxUtilization": 0.8998,
+    "method": "simp-oc",
+    "solid": "//////4DwP/gA4APwAPAB4AP4AEAHngAADgcAADgBwAP/D/gBgAAAAAAAAAAAAAAAARgAAAYMAAAMBwAAOAHAAMAAMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwAMAAwAAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADAAwADAADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMADAAMAAMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwAMAD/w/4AYAAAAAAAAAAAAAAAAEYAAAGDAAADAcAADgBwD//////gPA/+ADgA/AA8AHAA/gAQAeeAAAOBwAAOAHAA==",
+    "volume": 0.14990234375
+  },
   "grid": [
     32,
     8,
@@ -96,7 +102,7 @@
       ],
       "force": [
         0.0,
-        -20000.0,
+        -35950.0,
         0.0
       ]
     }
@@ -283,9 +289,9 @@
     }
   ],
   "targets": {
-    "star1": 0.7,
-    "star2": 0.55,
-    "star3": 0.45
+    "star1": 0.4499,
+    "star2": 0.2999,
+    "star3": 0.1999
   },
   "title": "両端で支えるはり",
   "version": 1,
