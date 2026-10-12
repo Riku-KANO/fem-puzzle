@@ -133,6 +133,8 @@ export class LoadTest {
    * playing (restored exactly on stop); `userData.setStroke(t)` is called when present.
    */
   loadJigs: () => THREE.Object3D[];
+  /** pin the show at this time (s) instead of the clock — screenshots, e2e (dev aid) */
+  freezeAt: number | null = null;
   readonly view: DeformView;
   readonly debris: Debris;
 
@@ -328,7 +330,7 @@ export class LoadTest {
     const dt = Math.max(0, (nowMs - s.last) / 1000);
     if (nowMs > s.last) this.frameTimes.push(nowMs - s.last);
     s.last = nowMs;
-    const frame = timelineAt(s.plan, (nowMs - s.t0) / 1000);
+    const frame = timelineAt(s.plan, this.freezeAt ?? (nowMs - s.t0) / 1000);
     this.applyFrame(frame);
     if (!this.show) return;
     this.debris.update(dt, frame.debris);
@@ -378,10 +380,9 @@ export class LoadTest {
 
     const lift = Math.max(3, 0.15 * Math.max(this.opts.state.grid.nx, this.opts.state.grid.ny, this.opts.state.grid.nz));
     for (const j of s.jigs) {
-      this.tmp
-        .copy(j.restWorld)
-        .addScaledVector(j.dir, -lift * this.h * (1 - f.jig))
-        .addScaledVector(j.u, factor);
+      // a jig with its own ram stroke (T-310 glTF) stays seated and extends the rod instead
+      const travel = j.setStroke ? 0 : lift * this.h * (1 - f.jig);
+      this.tmp.copy(j.restWorld).addScaledVector(j.dir, -travel).addScaledVector(j.u, factor);
       if (j.obj.parent) j.obj.parent.worldToLocal(this.tmp);
       j.obj.position.copy(this.tmp);
       j.setStroke?.(f.jig);

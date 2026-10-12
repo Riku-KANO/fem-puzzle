@@ -1,13 +1,25 @@
-// Load-test choreography (design doc 演出): the load jig slowly descends, the deflection ramps
-// up to the exaggerated scale; when anything is over-stressed cracks appear and flash, then the
-// over-stressed elements break off in order of utilisation and the debris settles; finally
-// the part springs back and the jig lifts off. Pure function of elapsed time, so frame drops
-// never desynchronise the show and the phases are unit-tested.
+// Load-test choreography (design doc 演出): the load jig backs off its resting contact and
+// slowly descends again, the deflection ramps up to the exaggerated scale; when anything is
+// over-stressed cracks appear and flash, then the over-stressed elements break off in order
+// of utilisation and the debris settles; finally the load is released and the part springs
+// back with the jig resting on it (its idle pose, so nothing jumps when the view restores).
+// Pure function of elapsed time, so frame drops never desynchronise the show and the phases
+// are unit-tested.
 //
 // prefers-reduced-motion: no movement at all — a single static frame (contact, full
 // deformation, cracks, broken elements removed) held until the player ends the test.
 
-export type LoadTestPhase = 'descend' | 'load' | 'hold' | 'crack' | 'break' | 'settle' | 'release' | 'done' | 'static';
+export type LoadTestPhase =
+  | 'lift'
+  | 'descend'
+  | 'load'
+  | 'hold'
+  | 'crack'
+  | 'break'
+  | 'settle'
+  | 'release'
+  | 'done'
+  | 'static';
 
 export interface TimelinePlan {
   /** number of elements that will break off */
@@ -35,6 +47,7 @@ export interface TimelineFrame {
 
 /** Phase lengths in seconds. */
 export const DURATION = {
+  lift: 0.3,
   descend: 0.8,
   load: 1.6,
   hold: 1.0,
@@ -52,8 +65,8 @@ export function breakDuration(breaks: number): number {
 export function timelineDuration(plan: TimelinePlan): number {
   if (plan.reducedMotion) return Infinity;
   const d = DURATION;
-  if (plan.breaks === 0) return d.descend + d.load + d.hold + d.release;
-  return d.descend + d.load + d.crack + breakDuration(plan.breaks) + d.settle + d.release;
+  if (plan.breaks === 0) return d.lift + d.descend + d.load + d.hold + d.release;
+  return d.lift + d.descend + d.load + d.crack + breakDuration(plan.breaks) + d.settle + d.release;
 }
 
 export const easeInOut = (t: number): number => {
@@ -73,9 +86,15 @@ export function timelineAt(plan: TimelinePlan, t: number): TimelineFrame {
     return { phase: 'static', jig: 1, deform: 1, crack: n > 0 ? 1 : 0, flash: 0, broken: n, debris: 0, done: false };
   }
   const d = DURATION;
-  const f: TimelineFrame = { phase: 'descend', jig: 0, deform: 0, crack: 0, flash: 0, broken: 0, debris: 1, done: false };
+  const f: TimelineFrame = { phase: 'lift', jig: 1, deform: 0, crack: 0, flash: 0, broken: 0, debris: 1, done: false };
   let s = Math.max(0, t);
 
+  // the jig rests on the part between tests: back off first, then come down slowly
+  f.jig = 1 - easeInOut(s / d.lift);
+  if (s < d.lift) return f;
+  s -= d.lift;
+
+  f.phase = 'descend';
   f.jig = easeInOut(s / d.descend);
   if (s < d.descend) return f;
   s -= d.descend;
@@ -113,9 +132,8 @@ export function timelineAt(plan: TimelinePlan, t: number): TimelineFrame {
   f.phase = 'release';
   const r = easeInOut(s / d.release);
   f.deform = 1 - r;
-  f.jig = 1 - r;
   f.debris = 1 - r;
   if (s < d.release) return f;
 
-  return { ...f, phase: 'done', jig: 0, deform: 0, debris: 0, done: true };
+  return { ...f, phase: 'done', jig: 1, deform: 0, debris: 0, done: true };
 }

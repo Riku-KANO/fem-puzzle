@@ -14,7 +14,7 @@
   const over = $derived(status.overstressed > 0);
   // the outcome is revealed once the load is fully applied (or at once without motion)
   const revealed = $derived(
-    status.state === 'holding' || (status.phase !== null && !['descend', 'load'].includes(status.phase)),
+    status.state === 'holding' || (status.phase !== null && !['lift', 'descend', 'load'].includes(status.phase)),
   );
 </script>
 

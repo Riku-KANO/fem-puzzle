@@ -14,16 +14,20 @@ describe('load test timeline', () => {
   it('within limits: descend, load to full scale, hold, release, done', () => {
     const plan = { breaks: 0, reducedMotion: false };
     const end = timelineDuration(plan);
-    expect(end).toBeCloseTo(DURATION.descend + DURATION.load + DURATION.hold + DURATION.release, 9);
+    const t0 = DURATION.lift + DURATION.descend;
+    expect(end).toBeCloseTo(t0 + DURATION.load + DURATION.hold + DURATION.release, 9);
+    // starts from the resting contact (no jump), backs off, comes down
     const f0 = timelineAt(plan, 0);
-    expect(f0).toMatchObject({ phase: 'descend', jig: 0, deform: 0, broken: 0, done: false });
-    const contact = timelineAt(plan, DURATION.descend);
+    expect(f0).toMatchObject({ phase: 'lift', jig: 1, deform: 0, broken: 0, done: false });
+    expect(timelineAt(plan, DURATION.lift)).toMatchObject({ phase: 'descend', jig: 0 });
+    const contact = timelineAt(plan, t0);
     expect(contact.jig).toBe(1);
     expect(contact.deform).toBe(0); // the load only ramps once the jig touches
-    const full = timelineAt(plan, DURATION.descend + DURATION.load + 0.01);
+    const full = timelineAt(plan, t0 + DURATION.load + 0.01);
     expect(full).toMatchObject({ phase: 'hold', deform: 1, crack: 0, broken: 0 });
     const done = timelineAt(plan, end + 0.001);
-    expect(done).toMatchObject({ phase: 'done', deform: 0, jig: 0, done: true });
+    // ends resting on the part (the jig's idle pose), so restoring the view never jumps
+    expect(done).toMatchObject({ phase: 'done', deform: 0, jig: 1, done: true });
     // never cracks or flashes
     for (const f of sample(plan)) {
       expect(f.crack).toBe(0);
@@ -35,19 +39,25 @@ describe('load test timeline', () => {
     const plan = { breaks: 40, reducedMotion: false };
     const end = timelineDuration(plan);
     expect(end).toBeCloseTo(
-      DURATION.descend + DURATION.load + DURATION.crack + breakDuration(40) + DURATION.settle + DURATION.release,
+      DURATION.lift +
+        DURATION.descend +
+        DURATION.load +
+        DURATION.crack +
+        breakDuration(40) +
+        DURATION.settle +
+        DURATION.release,
       9,
     );
     const frames = sample(plan);
     const phases = [...new Set(frames.map((f) => f.phase))];
-    expect(phases).toEqual(['descend', 'load', 'crack', 'break', 'settle', 'release', 'done']);
+    expect(phases).toEqual(['lift', 'descend', 'load', 'crack', 'break', 'settle', 'release', 'done']);
     let lastBroken = 0;
     for (const f of frames) {
       expect(f.broken).toBeGreaterThanOrEqual(lastBroken); // monotone
       lastBroken = f.broken;
       expect(f.deform).toBeGreaterThanOrEqual(0);
       expect(f.deform).toBeLessThanOrEqual(1);
-      if (f.phase === 'crack' || f.phase === 'descend' || f.phase === 'load') expect(f.broken).toBe(0);
+      if (['lift', 'descend', 'load', 'crack'].includes(f.phase)) expect(f.broken).toBe(0);
       if (f.phase !== 'crack') expect(f.flash).toBe(0);
     }
     expect(Math.max(...frames.map((f) => f.flash))).toBeGreaterThan(0.5);
@@ -55,7 +65,7 @@ describe('load test timeline', () => {
     expect(settle).toMatchObject({ broken: 40, crack: 1, deform: 1 });
     expect(frames.at(-1)).toMatchObject({ phase: 'done', done: true, broken: 40 });
     // the first element breaks right at the start of the break phase
-    const tBreak = DURATION.descend + DURATION.load + DURATION.crack;
+    const tBreak = DURATION.lift + DURATION.descend + DURATION.load + DURATION.crack;
     expect(timelineAt(plan, tBreak + 1e-6).broken).toBe(1);
     expect(timelineAt(plan, tBreak + breakDuration(40) - 1e-6).broken).toBe(40);
   });
