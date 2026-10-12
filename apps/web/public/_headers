@@ -1,0 +1,4 @@
+# Cloudflare Pages: cross-origin isolation for SharedArrayBuffer (multi-threaded WASM solver).
+/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp

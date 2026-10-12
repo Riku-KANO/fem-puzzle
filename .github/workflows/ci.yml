@@ -1,0 +1,39 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rust toolchain (from rust-toolchain.toml)
+        run: rustup show active-toolchain || rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: wasm-pack
+        run: curl -sSf https://rustwasm.github.io/wasm-pack/installer/init.sh | sh
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Blender is not installed in CI: stage JSON is validated by the protocol tests;
+      # stage drift (`build-stages.sh --check`) runs locally where Blender exists.
+      - run: bash scripts/verify.sh full
+
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-logs
+          path: .artifacts/verify/

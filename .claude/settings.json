@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(cargo build:*)",
+      "Bash(cargo test:*)",
+      "Bash(cargo run:*)",
+      "Bash(cargo clippy:*)",
+      "Bash(cargo fmt:*)",
+      "Bash(cargo check:*)",
+      "Bash(cargo tree:*)",
+      "Bash(wasm-pack build:*)",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm test:*)",
+      "Bash(pnpm typecheck:*)",
+      "Bash(pnpm build:*)",
+      "Bash(pnpm build\\:wasm:*)",
+      "Bash(pnpm --filter:*)",
+      "Bash(pnpm -r:*)",
+      "Bash(pnpm exec:*)",
+      "Bash(node scripts/:*)",
+      "Bash(bash scripts/:*)",
+      "Bash(/Applications/Blender.app/Contents/MacOS/Blender -b:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git branch:*)",
+      "Bash(git worktree list:*)"
+    ]
+  }
+}

@@ -1,0 +1,18 @@
+:root {
+  color-scheme: dark;
+  --bg: #15171c;
+  --panel: #1f232b;
+  --text: #e8e6e1;
+  --muted: #9aa0aa;
+  --accent: #f0a23b;
+  font-family: system-ui, -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+}

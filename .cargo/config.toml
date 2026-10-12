@@ -1,0 +1,3 @@
+# WASM SIMD128 is part of the baseline we target (see docs/specs/solver.md).
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "target-feature=+simd128"]

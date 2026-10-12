@@ -1,0 +1,12 @@
+[package]
+name = "topopt"
+description = "Offline SIMP/OC topology optimiser: computes stage benchmark solutions and targets"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+fem.workspace = true
+stage.workspace = true
+serde_json.workspace = true

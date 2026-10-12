@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["svelte", "vite/client", "node"],
+    "paths": {
+      "fem-wasm": ["../../crates/fem-wasm/pkg/fem_wasm.js"]
+    }
+  },
+  "include": ["src", "test", "vite.config.ts"]
+}

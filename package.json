@@ -1,0 +1,21 @@
+{
+  "name": "stress-carve",
+  "private": true,
+  "description": "応力彫刻 STRESS CARVE — browser puzzle: carve the lightest structure that survives a real FEM analysis",
+  "type": "module",
+  "packageManager": "pnpm@11.20.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @stress-carve/web dev",
+    "build": "pnpm build:wasm && pnpm --filter @stress-carve/web build",
+    "build:wasm": "wasm-pack build crates/fem-wasm --release --target web",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test",
+    "verify": "bash scripts/verify.sh",
+    "verify:fast": "bash scripts/verify.sh fast",
+    "tasks": "node scripts/tasks.mjs",
+    "stages": "bash scripts/build-stages.sh"
+  }
+}
