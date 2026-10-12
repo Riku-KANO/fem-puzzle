@@ -2,6 +2,7 @@
 
 use crate::connectivity::connected_to_seeds;
 use crate::hex8::{self, b_centroid, d1};
+use crate::mg::Multigrid;
 use crate::operator::Operator;
 use crate::pcg::{Pcg, Step};
 use crate::precond::{Jacobi, Precond};
@@ -14,9 +15,9 @@ pub const E_MIN_RATIO: f64 = 1e-9;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Preconditioner {
     /// Diagonal scaling (baseline, always available).
-    #[default]
     Jacobi,
-    /// Geometric multigrid V-cycle (task T-201). Until T-201 lands this falls back to Jacobi.
+    /// Geometric multigrid V-cycle with Galerkin coarse operators ([`crate::mg`]).
+    #[default]
     Multigrid,
 }
 
@@ -78,11 +79,12 @@ struct CaseState {
 
 /// Create the preconditioner for `kind`.
 ///
-/// Extension point for T-201: `Preconditioner::Multigrid` constructs the multigrid
-/// preconditioner here; until then it falls back to Jacobi.
+/// `Preconditioner::Multigrid` builds the geometric multigrid of [`crate::mg`] (sized on
+/// the first rebuild).
 fn make_precond(kind: Preconditioner) -> Box<dyn Precond> {
     match kind {
-        Preconditioner::Jacobi | Preconditioner::Multigrid => Box::new(Jacobi::default()),
+        Preconditioner::Jacobi => Box::new(Jacobi::default()),
+        Preconditioner::Multigrid => Box::new(Multigrid::default()),
     }
 }
 
@@ -191,9 +193,13 @@ impl Solver {
     /// (optimiser mode; ignored in player mode). Takes effect at the next `begin`.
     ///
     /// # Panics
-    /// If `rho.len()` is not the element count.
+    /// If `rho.len()` is not the element count or `penal` is not finite and ≥ 0.
     pub fn set_density(&mut self, rho: &[f64], penal: f64) {
         assert_eq!(rho.len(), self.density.len(), "set_density: wrong length");
+        assert!(
+            penal.is_finite() && penal >= 0.0,
+            "set_density: bad penal {penal}"
+        );
         for (d, &r) in self.density.iter_mut().zip(rho) {
             *d = if r.is_nan() { 0.0 } else { r.clamp(0.0, 1.0) };
         }
@@ -207,8 +213,9 @@ impl Solver {
     }
 
     /// Recompute connectivity, active set, element stiffness, DOF mask and preconditioner
-    /// from the current solid set / densities. Returns whether the operator changed.
-    fn update_operator(&mut self, force_rebuild: bool) -> bool {
+    /// from the current solid set / densities. The preconditioner is rebuilt only if the
+    /// operator changed (or `force_rebuild`).
+    fn update_operator(&mut self, force_rebuild: bool) {
         let p = &self.problem;
         connected_to_seeds(
             &p.grid,
@@ -246,7 +253,6 @@ impl Solver {
         if changed || force_rebuild {
             self.precond.rebuild(&self.op.view());
         }
-        changed
     }
 
     /// Recompute active set / masks / preconditioner; warm start from the previous `u`
