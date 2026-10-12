@@ -41,7 +41,9 @@ function hostWith(factory: ReturnType<typeof wasmBackendFactory>, opts: HostOpti
   const transfers: Transferable[][] = [];
   const host = new SolverHost(
     (msg, transfer) => {
-      out.push(msg);
+      // like a real postMessage: transferred buffers are detached, so a result array that
+      // aliased WASM memory or was transferred twice would throw here
+      out.push(structuredClone(msg, { transfer }));
       transfers.push(transfer);
     },
     () => factory,
