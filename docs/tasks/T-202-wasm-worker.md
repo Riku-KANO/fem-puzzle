@@ -1,7 +1,7 @@
 ---
 id: T-202
 title: WASM binding (Session) for the browser worker
-status: done
+status: review
 phase: 0
 depends: [T-101]
 owns:
