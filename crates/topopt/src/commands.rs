@@ -3,7 +3,8 @@
 use crate::ascii;
 use crate::cli::{CalibrateArgs, RunArgs};
 use crate::driver::{
-    self, CalibrationSettings, FemAnalysis, Judge, Judgement, Model, RunOutcome, SIMP_TOL,
+    self, CalibrationSettings, FemAnalysis, JUDGE_TOL, Judge, Judgement, Model, RunOutcome,
+    SIMP_TOL, VERIFY_TOL,
 };
 use crate::layout::Layout;
 use crate::simp::{IterInfo, Simp, SimpOptions};
@@ -70,7 +71,7 @@ pub fn run(args: &RunArgs) -> Result<()> {
     );
     let simp = Simp::new(l, args.rmin)?;
     let mut analysis = FemAnalysis::new(model.problem.clone(), SIMP_TOL);
-    let mut judge = Judge::new(model.problem.clone());
+    let mut judge = Judge::new(model.problem.clone(), JUDGE_TOL);
     let opts = SimpOptions {
         volfrac: args.volfrac,
         penal: args.penal,
@@ -106,7 +107,7 @@ pub fn run(args: &RunArgs) -> Result<()> {
         print_design(l, &out.design.solid);
     }
     report_design(&out);
-    let full = driver::judge(&model.problem, &l.domain)?;
+    let full = driver::judge(&model.problem, &l.domain, VERIFY_TOL)?;
     println!("  full block: {}", describe_judgement(&full));
     Ok(())
 }
@@ -172,13 +173,11 @@ fn calibrate_one(args: &CalibrateArgs, path: &Path) -> Result<()> {
             match cache_mismatch(&value, &cached)? {
                 None => {
                     match Model::from_json(&ctext).and_then(|m| driver::verify_calibrated(&m)) {
-                        Ok((bench, full)) => {
+                        Ok(bench) => {
                             stagejson::graft_calibration(&mut value, &cached)?;
                             println!(
-                                "{id}: reused calibration from {} (benchmark {}, full block {:.4}) [{:.1} s]",
-                                cpath.display(),
+                                "{id}: reused cached calibration (benchmark re-verified: {}) [{:.2} s]",
                                 describe_judgement(&bench),
-                                full.max_utilization,
                                 t.elapsed().as_secs_f64()
                             );
                             return finish(args, path, &text, &value);
@@ -256,7 +255,9 @@ fn finish(args: &CalibrateArgs, path: &Path, old: &str, value: &serde_json::Valu
     if args.write {
         if new != old {
             std::fs::write(path, &new)?;
-            println!("  wrote {}", path.display());
+            if !args.quiet {
+                println!("  wrote {}", path.display());
+            }
         }
     } else if new != old {
         println!("  (dry run: {} would change; pass --write)", path.display());
@@ -269,11 +270,11 @@ pub fn eval(paths: &[std::path::PathBuf]) -> Result<()> {
     for p in paths {
         let model = Model::from_json(&read(p)?)?;
         let id = &model.stage.id;
-        let full = driver::judge(&model.problem, &model.layout.domain)?;
+        let full = driver::judge(&model.problem, &model.layout.domain, VERIFY_TOL)?;
         println!("{id}: full block {}", describe_judgement(&full));
         match &model.stage.benchmark {
             Some(_) => match driver::verify_calibrated(&model) {
-                Ok((bench, _)) => {
+                Ok(bench) => {
                     println!("{id}: benchmark ok, {}", describe_judgement(&bench));
                     let solid = model
                         .stage

@@ -13,8 +13,16 @@ use std::time::Instant;
 
 /// Linear-solver tolerance inside the SIMP loop.
 pub const SIMP_TOL: f64 = 1e-6;
-/// Linear-solver tolerance when judging designs (as strict as the game's default).
+/// Linear-solver tolerance when judging candidate designs of the sweep.
 pub const JUDGE_TOL: f64 = 1e-6;
+/// Linear-solver tolerance for the stored `benchmark.maxUtilization` and its
+/// re-verification: tight, so the value does not depend on the preconditioner or on
+/// iteration counts (only on the discretisation).
+pub const VERIFY_TOL: f64 = 1e-8;
+/// Relative tolerance between a re-computed and the stored `maxUtilization`. The stored
+/// value is rounded to 4 decimals (≤ 6e-5 relative at 0.9); a real change of the numerics
+/// (element, stress recovery, loads) moves it by far more than 1e-3.
+pub const VERIFY_REL_TOL: f64 = 1e-3;
 
 /// A stage with everything derived from it.
 pub struct Model {
@@ -130,9 +138,9 @@ pub struct Judge {
 }
 
 impl Judge {
-    pub fn new(problem: Problem) -> Judge {
+    pub fn new(problem: Problem, tol: f64) -> Judge {
         let opts = SolverOptions {
-            tol: JUDGE_TOL,
+            tol,
             mode: Mode::Player,
             preconditioner: Preconditioner::Multigrid,
             ..SolverOptions::default()
@@ -171,8 +179,8 @@ impl Judge {
 }
 
 /// Judge one design with a fresh solver.
-pub fn judge(problem: &Problem, solid: &[bool]) -> Result<Judgement> {
-    Judge::new(problem.clone()).evaluate(solid)
+pub fn judge(problem: &Problem, solid: &[bool], tol: f64) -> Result<Judgement> {
+    Judge::new(problem.clone(), tol).evaluate(solid)
 }
 
 /// One SIMP run plus its thresholded design.
@@ -263,7 +271,7 @@ pub fn sweep(
 ) -> Result<Vec<RunOutcome>> {
     let simp = Simp::new(&model.layout, settings.simp.rmin)?;
     let mut analysis = FemAnalysis::new(model.problem.clone(), SIMP_TOL);
-    let mut judge = Judge::new(model.problem.clone());
+    let mut judge = Judge::new(model.problem.clone(), JUDGE_TOL);
     let (vlo, _) = simp.volfrac_range();
     let mut out: Vec<RunOutcome> = Vec::new();
     for &v in &settings.volfracs {
@@ -312,8 +320,8 @@ pub fn calibrate(
 
     // Re-judge with the rounded forces through a fresh parse (exactly what the game sees).
     let scaled = Model::from_json(&stagejson::to_text(value))?;
-    let bench = judge(&scaled.problem, &best.design.solid)?;
-    let full_block = judge(&scaled.problem, &scaled.layout.domain)?;
+    let bench = judge(&scaled.problem, &best.design.solid, VERIFY_TOL)?;
+    let full_block = judge(&scaled.problem, &scaled.layout.domain, VERIFY_TOL)?;
     let volume = best.design.count as f64 / model.layout.domain_count() as f64;
     let targets = calibrate::targets_for(volume)?;
     let benchmark = stage::Benchmark {
@@ -340,10 +348,11 @@ pub fn calibrate(
     })
 }
 
-/// Re-check a calibrated stage: the stored benchmark is a valid design, its judged
-/// utilisation matches `maxUtilization`, volume and targets are consistent.
-/// Returns the benchmark and full-block judgements.
-pub fn verify_calibrated(model: &Model) -> Result<(Judgement, Judgement)> {
+/// Re-check a calibrated stage: the stored benchmark is a valid design (keep cells, loads
+/// connected, inside the domain), `volume` and `targets` follow from it, and its judged
+/// utilisation (solved to [`VERIFY_TOL`]) matches `maxUtilization` within
+/// [`VERIFY_REL_TOL`] and passes. Returns the benchmark judgement.
+pub fn verify_calibrated(model: &Model) -> Result<Judgement> {
     let s = &model.stage;
     let b = s
         .benchmark
@@ -365,19 +374,21 @@ pub fn verify_calibrated(model: &Model) -> Result<(Judgement, Judgement)> {
     if calibrate::targets_for(volume)? != s.targets {
         return err("targets do not follow the benchmark volume");
     }
-    let bench = judge(&model.problem, &solid)?;
     let stored = b
         .max_utilization
         .ok_or_else(|| Error("benchmark.maxUtilization missing".into()))?;
-    if (bench.max_utilization - stored).abs() > 1e-3 {
+    let bench = judge(&model.problem, &solid, VERIFY_TOL)?;
+    if !bench.converged {
+        return err("benchmark solve did not converge");
+    }
+    if (bench.max_utilization - stored).abs() > VERIFY_REL_TOL * stored.abs() {
         return err(format!(
-            "benchmark utilisation {:.5} != stored {stored}",
+            "benchmark utilisation {:.6} != stored {stored} (rel. tol {VERIFY_REL_TOL})",
             bench.max_utilization
         ));
     }
     if bench.max_utilization > 1.0 || !bench.loads_connected {
         return err("benchmark design fails the strength rule");
     }
-    let full = judge(&model.problem, &model.layout.domain)?;
-    Ok((bench, full))
+    Ok(bench)
 }
