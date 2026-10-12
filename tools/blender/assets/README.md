@@ -27,6 +27,7 @@ the icons exist at 128×128 and that the folder stays under 1.5 MB. `python3 glb
 | `jig_riser.glb` | stand from the bench up to a support |
 | `jig_cylinder.glb` | hydraulic pusher (load), yellow with arrow fins |
 | `jig_weight.glb` | hanging slotted weights (load, downward only) |
+| `jig_spreader.glb` | load-spreader plate (unit size, scale to the patch) under a cylinder |
 | `debris.glb` | `chip_0..3` (convex, 6–11 mm) + `swarf_0` curl |
 | `crack_decal.png` | 512² dark cracks, straight alpha, centred, radius ≤ 0.47 |
 | `crack_tile.png` | 256² seamlessly tileable crack mask (alpha), ~1 tile per voxel face |
@@ -39,7 +40,8 @@ helpers, PNG I/O), `assetdefs/` (one module per family, `palette.py` for colours
 ## Conventions
 
 Metres, Y-up glTF. Every asset root node carries its metadata as glTF `extras`
-(three.js: `object.userData`), duplicated in `manifest.json`.
+(three.js: `object.userData`), duplicated in `manifest.json`. Named parts are child nodes;
+a part with several materials loads in three.js as a `Group` of that name (move/scale the group).
 
 **Bench / room.** Shared frame: origin = centre of the test-bed top surface, camera side
 = +Z, wood top y = −0.03, floor y = −0.93, back wall z = −0.55. Place both at
@@ -67,13 +69,17 @@ single-sided (camera outside the room sees through them). Debris colliders (boxe
   y ∈ [0, 0.245]. `jig_weight` pulls and is only for F̂ ≈ −Y: put it on the underside
   (outward normal ≈ +F̂); it hangs in y ∈ [−0.125, 0]. If the load cells' face opposite to
   F̂ is covered by material, use the weight (downward) or the cylinder on the far side.
+  When the patch is wider than the Ø 0.032 pad (all current W1/W2 loads: 2 × 4 or 2 × 8
+  cells, w2-03 the whole top), put `jig_spreader` at the contact point, scaled X/Z to the
+  patch size in metres (unit plate, 0.008 thick), and the cylinder on top of it at
+  `contact − 0.008 · F̂`.
 - *Animation* (load test): `cylinder_rod` can retract up to `rodTravel` = 0.04 along +Y
   (rest pose = pad touching); `weight_stack` / the whole root move along −Y. During the
   deformation, translate the load jig root with the (scaled) displacement of its patch.
 
 Rotation for a jig: build the basis `X = tangent, Y = n (support) or −F̂ (load),
 Z = X × Y`, then apply the per-axis scale. `previews.py::scenes` does exactly this for a
-W1 cantilever (clamp + riser + cylinder) and a W2 beam (pin, roller, risers, weight).
+w1-01 (clamp + riser, spreader + cylinder) and w2-01 (pin, roller, risers, spreader + cylinder).
 
 **Materials.** Jigs: `jig_paint` (metal 0, rough 0.55), `jig_steel` (metal 0.6, rough
 0.35), `jig_rubber`; albedo × mild AO in `COLOR_0`. Metals need an environment map

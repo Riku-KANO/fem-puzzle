@@ -210,6 +210,30 @@
       "scaleX": "patch length / 0.08",
       "use": "roller (fix is a strict subset of xyz)"
     },
+    "jig_spreader.glb": {
+      "bounds": [
+        [
+          -0.5,
+          0.0,
+          -0.5
+        ],
+        [
+          0.5,
+          0.008,
+          0.5
+        ]
+      ],
+      "bytes": 3096,
+      "faces": 11,
+      "frame": "origin = contact patch centre; -Y = force direction; plate in y in [0, 0.008]",
+      "kind": "load-spreader",
+      "nodes": [
+        "spreader_plate"
+      ],
+      "scaleXZ": "patch size in metres (unit plate)",
+      "thickness": 0.008,
+      "use": "under a cylinder when the load patch is wider than its pad"
+    },
     "jig_weight.glb": {
       "animate": "weight_stack.position.y",
       "bounds": [

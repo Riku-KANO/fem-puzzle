@@ -85,6 +85,7 @@ _POSE = {
     "jig_riser": (Matrix.Identity(4), None),
     "jig_cylinder": (Matrix.Identity(4), ((0.08, 0.04, 0.06), (-0.04, -0.04, -0.03))),
     "jig_weight": (Matrix.Identity(4), ((0.08, 0.04, 0.06), (-0.04, 0.0, -0.03))),
+    "jig_spreader": (scale(0.08, 1.0, 0.04), ((0.12, 0.03, 0.06), (-0.06, -0.03, -0.03))),
 }
 
 
@@ -125,7 +126,7 @@ def _riser(out_dir: str, x: float, z: float, top: float) -> None:
 def scenes(out_dir: str, prev_dir: str, outs: list[str]) -> None:
     """W1 cantilever (clamp + cylinder) and W2 beam (pin, roller, hanging weight)."""
     g = BENCH_GAP
-    # ---- W1: 24 x 8 x 4 voxels of 1 cm, x- face clamped, downward load on the tip top
+    # ---- W1 (w1-01): 24 x 8 x 4 voxels of 1 cm, x- face clamped, downward load on the tip top
     S.reset()
     _env(out_dir)
     S.setup_render(W, H, world=(0.02, 0.02, 0.025))
@@ -136,25 +137,29 @@ def scenes(out_dir: str, prev_dir: str, outs: list[str]) -> None:
     m = basis((0, 1, 0), (-1, 0, 0), (-nx / 2, g + ny / 2, 0.0)) @ scale((ny + 0.02) / 0.10, 1.0, (nz + 0.02) / 0.10)
     _jig(out_dir, "jig_clamp", m)
     _riser(out_dir, -nx / 2 - 0.03, 0.0, g + ny / 2 - 0.06 * (ny + 0.02) / 0.10)
-    # cylinder: force (0, -F, 0) on the top of the last column: -Y = F, so identity rotation
-    _jig(out_dir, "jig_cylinder", translate(nx / 2 - 0.005, g + ny, 0.0))
+    # w1-01 load: cells x 22..23, y 7, z 0..3, force (0, -F, 0) -> contact on the top face,
+    # -Y = F so no rotation; 2 x 4 cm patch -> spreader scaled to it, cylinder on top
+    _jig(out_dir, "jig_spreader", translate(nx / 2 - 0.01, g + ny, 0.0) @ scale(0.02, 1.0, nz))
+    _jig(out_dir, "jig_cylinder", translate(nx / 2 - 0.01, g + ny + 0.008, 0.0))
     S.camera((0.05, g + 0.55, 0.62), (0.0, g + 0.02, 0.0), lens=30.0)
     _render(prev_dir, "scene_w1", outs)
 
-    # ---- W2: 32 x 8 x 8, pin + roller under the ends, hanging weight under mid-span
+    # ---- W2 (w2-01): 32 x 8 x 8, pin + roller under the ends (2 x 8 cells each), centre
+    # load on 2 x 8 top cells -> spreader plate scaled to the patch + cylinder on top of it
     S.reset()
     _env(out_dir)
     S.setup_render(W, H, world=(0.02, 0.02, 0.025))
     _lights()
     nx, ny, nz = 0.32, 0.08, 0.08
     _domain((nx, ny, nz), (-nx / 2, g, -nz / 2))
-    for name, x in (("jig_pin", -nx / 2 + 0.005), ("jig_roller", nx / 2 - 0.005)):
+    for name, x in (("jig_pin", -nx / 2 + 0.01), ("jig_roller", nx / 2 - 0.01)):
         # bottom face: +Y -> -Y (down), local X (pin axis) -> +Z across the beam
         m = basis((0, 0, 1), (0, -1, 0), (x, g, 0.0)) @ scale(nz / 0.08, 1.0, 1.0)
         _jig(out_dir, name, m)
         _riser(out_dir, x, 0.0, g - 0.06)
-    _jig(out_dir, "jig_weight", translate(0.0, g, 0.0))
-    S.camera((0.12, g + 0.42, 0.62), (0.0, g - 0.02, 0.0), lens=30.0)
+    _jig(out_dir, "jig_spreader", translate(0.0, g + ny, 0.0) @ scale(0.02, 1.0, nz))
+    _jig(out_dir, "jig_cylinder", translate(0.0, g + ny + 0.008, 0.0))
+    S.camera((0.12, g + 0.5, 0.62), (0.0, g + 0.02, 0.0), lens=30.0)
     _render(prev_dir, "scene_w2", outs)
 
 

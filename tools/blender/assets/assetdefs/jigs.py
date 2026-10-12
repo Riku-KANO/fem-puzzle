@@ -198,6 +198,20 @@ def weight() -> dict[str, MeshBuilder]:
     return {"weight_hook": hook, "weight_stack": stack}
 
 
+SPREADER_T = 0.008  # spreader plate thickness
+
+
+def spreader() -> dict[str, MeshBuilder]:
+    """Load-spreader plate for wide load patches: 1 x 1 m in X/Z (scale it to the patch in
+    metres), y in [0, 0.008]. Put the cylinder on top of it at y = 0.008."""
+    plate = MeshBuilder()
+    t = SPREADER_T
+    plate.add(box((1.0, t * 0.6, 1.0), (0.0, t * 0.3, 0.0)), color=P.LOAD_BLACK, mat=PAINT, bake=False)
+    plate.add(box((1.0, t * 0.4, 1.0), (0.0, t * 0.8, 0.0), skip_faces=("-y",)), color=P.LOAD_YELLOW, mat=PAINT,
+              bake=False)
+    return {"spreader_plate": plate}
+
+
 # =========================================================================== build
 
 JIGS = {
@@ -229,6 +243,11 @@ JIGS = {
         "kind": "load", "force": "pull",
         "frame": "origin = contact patch centre (underside); -Y = force direction (down); hangs in y <= 0",
         "saddle": [0.026, 0.026], "animate": "weight_stack.position.y",
+    }),
+    "jig_spreader": (spreader, {
+        "kind": "load-spreader", "use": "under a cylinder when the load patch is wider than its pad",
+        "frame": "origin = contact patch centre; -Y = force direction; plate in y in [0, 0.008]",
+        "scaleXZ": "patch size in metres (unit plate)", "thickness": SPREADER_T,
     }),
 }
 
