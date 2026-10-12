@@ -2,6 +2,7 @@
   color-scheme: dark;
   --bg: #15171c;
   --panel: #1f232b;
+  --panel-alpha: rgba(31, 35, 43, 0.88);
   --text: #e8e6e1;
   --muted: #9aa0aa;
   --accent: #f0a23b;
@@ -15,4 +16,47 @@ body,
   height: 100%;
   background: var(--bg);
   color: var(--text);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.panel {
+  box-sizing: border-box;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid #2c313b;
+  border-radius: 8px;
+  background: var(--panel-alpha);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+}
+
+button {
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--text);
+  background: #2b3039;
+  border: 1px solid #3a404c;
+  border-radius: 5px;
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+button:hover:not(:disabled) {
+  background: #353b46;
+}
+
+button.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
