@@ -110,7 +110,16 @@ StageScene constructor `this.loadTest.sectionMask = () => this.views.sectionMask
 T-308: no tint on the ghost mesh (agreed); merged its scene/voxelMesh changes. T-301: overlay
 unaffected; `scene.views.set(NORMAL_VIEW)` resets the view if the result screen wants it.
 
+**Merges.** main merged at 26d7cb2 (T-308), a07a6f6 (T-311), 6015437 (T-301/T-306/T-309/
+T-204). App.svelte conflict with T-301 resolved by keeping both; `actions.submit` now sets
+`hud.viewMode = 'normal'` before opening the result screen (the result camera turn and
+benchmark overlay should show the whole part, not a section or X-ray ghosts). Post-merge:
+web typecheck clean, 167 web tests pass, e2e smoke 2 passed (wasm skipped: T-205 not on main),
+X線 checked again in the browser on w1-02.
+
 **Follow-ups.**
+- T-301: in 最適化解のみ the overlay hides `scene.voxels.group`; with the submit reset above
+  the ghost mesh is empty anyway, but hiding `scene.views.group` alongside would be robust.
 - T-304 (stage switching): call `views.setStage(stage.grid)` on the App's `ViewSettings` when
   the stage changes (the `$effect` already re-applies the view to the new `game`).
 - The cap looks like any other face (frame marks the plane). If playtests show confusion, add
