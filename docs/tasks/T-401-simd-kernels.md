@@ -20,6 +20,10 @@ finest-level matrix-free product, which dominates MGCG time.
   under `cfg(target_arch = "wasm32", target_feature = "simd128")`, scalar fallback for native
   (or `std::simd`-free portable code that LLVM auto-vectorises — measure both).
 - Exploit structure: `Ke1` symmetric; consider structure-of-arrays gathers per element block.
+- Lesson from T-312: under fat LTO, inlining `hex8::mul24` into `Operator::apply` made the
+  vectoriser shuffle/spill accumulators (2× slower native). It is `#[inline(never)]` now — keep
+  the kernel out of line (or prove the inlined form vectorises), and cover the multigrid kernels in
+  `crates/fem/src/mg/level.rs` too. Measure native and WASM separately (the perf gate does).
 - Bit-for-bit is not required, but results must agree with the scalar path to 1e-12 relative.
 
 ## Acceptance criteria
