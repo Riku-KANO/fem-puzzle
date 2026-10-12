@@ -3,7 +3,7 @@
   "compilerOptions": {
     "types": ["svelte", "vite/client", "node"],
     "paths": {
-      "fem-wasm": ["../../crates/fem-wasm/pkg/fem_wasm.js"]
+      "fem-wasm": ["../../crates/fem-wasm/pkg/fem_wasm", "./src/solver/wasm/femWasmStub.ts"]
     }
   },
   "include": ["src", "test", "vite.config.ts"]
