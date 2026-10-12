@@ -26,6 +26,9 @@ pnpm dev            # http://localhost:5173  (?backend=mock to compare with the 
 | 9 | Thin-wall count in voxels vs "N か所" regions? | T-308 | T-308 |
 | 10 | Does carving feel instant (W2 ≈ 7.5 ms/carve in Chrome)? Safari/Firefox untested | perf | T-204, T-205 |
 | 11 | Per-stage stress margin needed (T-314)? | T-314 | T-305 |
+| 12 | Does the load cylinder (0.245 m) hide short W2 beams from the default camera? | camera (T-102) / jig scale (T-307) | T-310 |
+| 13 | Debris: fun or distracting? (`?debris=physics`, reduced-motion fades instead) | T-310 | T-310 |
+| 14 | First load acceptable? Rapier chunk 1.67 MB gzip (lazy); cold shader cache ~135 ms env map | T-309 / T-310 | T-310 |
 
 ## Known gaps (not bugs)
 
