@@ -42,7 +42,8 @@ Make `Preconditioner::Multigrid` real and the default, as specified in
 ## Log
 
 ### 2026-10-12 — T-201 worker (branch worktree-agent-a82c97b27192153bb)
-Early start against T-101; last merged T-101 commit: **952ba34** (final, status review).
+Early start against T-101 (merged its branch up to 952ba34), then merged **main @ 2b17d1a**
+(T-101 integrated incl. review fixes 0e4fdd6, T-202 done); all checks re-run on the merge.
 
 **What**
 - `crates/fem/src/mg/`: `grid.rs` (coarsening rule, node→elements), `transfer.rs` (trilinear
@@ -105,6 +106,9 @@ ms are ~1.5–2× an idle machine — ratios are stable). `cargo run -p fem --re
 - Profile (idle): V-cycle ≈ 2.45 fine matvecs; MG iteration ≈ 3.5 matvecs ≈ 4× a Jacobi
   iteration. Rebuild after 3×3 carve: 0.35 ms (40×12×12), 3.5 ms (60×20×20, dominated by the
   coarsest factorisation). Full build (every `set_density` in optimiser mode): 8 ms / 37 ms.
+- WASM (`node crates/fem-wasm/tests/node-smoke.mjs` after merging main, tol 1e-4): 24×8×4
+  `lv 2`, cold 1.8 ms (10 it), warm median 2.5 ms (12 it); 40×12×12 `lv 3`, cold 15.7 ms
+  (11 it), warm median 14.0 ms (9 it). All six stage JSONs solve (9–10 it cold).
 - SIMP (optimiser mode, E_min = 1e-9, `tests/multigrid.rs`, 32×8×8, tol 1e-8): random ρ³
   37 it vs Jacobi 584; random 0/1 densities 108 vs 1751.
 - SPD evidence: dense V-cycle operator symmetric (1e-12) and Cholesky-PD on a 3-level carved
