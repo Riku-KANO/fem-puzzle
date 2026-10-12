@@ -225,6 +225,27 @@ def decal(out_dir: str, prev_dir: str, outs: list[str]) -> None:
     _render(prev_dir, "crack_decal", outs)
 
 
+def crack_tile(out_dir: str, prev_dir: str, outs: list[str]) -> None:
+    """crack_tile.png repeated 3 x 3 over voxel-face-sized magenta cells (shows the seams)."""
+    import numpy as np
+
+    from assetkit import png
+
+    im = bpy.data.images.load(os.path.join(out_dir, "crack_tile.png"))
+    w, h = im.size
+    t = np.array(im.pixels[:], dtype=np.float32).reshape(h, w, 4)[::-1]
+    big = np.tile(t, (3, 3, 1))
+    face = np.empty(big.shape[:2] + (3,), dtype=np.float32)
+    face[:] = (0.82, 0.24, 0.78)
+    face[::w, :] = face[:, ::w] = (0.55, 0.12, 0.5)  # voxel edges
+    a = big[..., 3:4]
+    rgb = big[..., :3] * a + face * (1 - a)
+    rgba = np.concatenate([rgb, np.ones(rgb.shape[:2] + (1,), dtype=np.float32)], axis=2)
+    path = os.path.join(prev_dir, "crack_tile.png")
+    png.write_rgba(path, rgba.shape[1], rgba.shape[0], (np.clip(rgba, 0, 1) * 255 + 0.5).astype(np.uint8).tobytes())
+    outs.append(path)
+
+
 def icon_sheet(icon_dir: str, prev_dir: str, names: list[str], outs: list[str]) -> None:
     """All toolbar icons on a dark HUD-like strip (pure numpy composite)."""
     import numpy as np
@@ -267,6 +288,7 @@ def build(out_dir: str, prev_dir: str, only: list[str]) -> list[str]:
         debris(out_dir, prev_dir, outs)
     if want("decal"):
         decal(out_dir, prev_dir, outs)
+        crack_tile(out_dir, prev_dir, outs)
     icon_dir = os.path.join(out_dir, "icons")
     if want("icons") and os.path.isdir(icon_dir):
         from .icons import NAMES

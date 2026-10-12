@@ -7,7 +7,15 @@
         512,
         512
       ],
-      "use": "dark cracks, straight alpha, centred; project onto over-stressed faces"
+      "use": "dark cracks, straight alpha, centred (r <= 0.47); project onto over-stressed faces"
+    },
+    "crack_tile.png": {
+      "bytes": 13888,
+      "size": [
+        256,
+        256
+      ],
+      "use": "tileable crack mask (alpha), straight alpha; ~1 tile per voxel face"
     },
     "debris.glb": {
       "asset": "debris",

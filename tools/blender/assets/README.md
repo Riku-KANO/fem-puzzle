@@ -29,6 +29,7 @@ the icons exist at 128×128 and that the folder stays under 1.5 MB. `python3 glb
 | `jig_weight.glb` | hanging slotted weights (load, downward only) |
 | `debris.glb` | `chip_0..3` (convex, 6–11 mm) + `swarf_0` curl |
 | `crack_decal.png` | 512² dark cracks, straight alpha, centred, radius ≤ 0.47 |
+| `crack_tile.png` | 256² seamlessly tileable crack mask (alpha), ~1 tile per voxel face |
 | `icons/*.png` | 128 px: `brush-1/3/5`, `undo`, `redo`, `load-test`, `submit` |
 | `manifest.json` | sizes, bounds, node names and the metadata below |
 
@@ -81,9 +82,11 @@ material, neutral grey albedo so per-instance colours (e.g. the voxel's stress c
 multiply cleanly; `extras.pieces` gives volume, mass (aluminium 2700 kg/m³) and half
 extents; chips are convex → Rapier `convexHull` from the vertex positions.
 
-**Decal.** Straight alpha (not premultiplied), sRGB. Project centred on an over-stressed
-face (`DecalGeometry`, or a quad with `polygonOffset`, `depthWrite = false`), 1.5–3 voxels
-wide, random rotation about the normal.
+**Cracks.** Straight alpha (not premultiplied), sRGB, RGB = dark crack colour, alpha =
+mask. `crack_decal.png`: project centred on an over-stressed face (`DecalGeometry`, or a
+quad with `polygonOffset`, `depthWrite = false`), 1.5–3 voxels wide, random rotation about
+the normal. `crack_tile.png`: sample with `RepeatWrapping` at one tile per voxel face
+(e.g. face-local UV = fract(rest-space position / voxelSize)) and mix by alpha.
 
 ## Adding or changing an asset
 
