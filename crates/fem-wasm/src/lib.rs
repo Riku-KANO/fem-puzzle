@@ -2,6 +2,9 @@
 //!
 //! The `Session` API is implemented by task `T-202`.
 
+pub mod convert;
+pub mod options;
+
 use wasm_bindgen::prelude::*;
 
 /// Crate version, handy for checking that the WASM bundle loaded.
