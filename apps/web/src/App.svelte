@@ -4,11 +4,13 @@
   import { onMount } from 'svelte';
   import type { BrushSize } from './game/brush.ts';
   import { startGame, type GameSession } from './game/boot.ts';
+  import type { Axis } from './game/grid.ts';
   import { submitGate } from './game/judge/index.ts';
   import { listStages, pickInitialStage } from './game/stages.ts';
   import ThinWallBadge from './game/thickness/ThinWallBadge.svelte';
   import { ThinWallHud } from './game/thickness/thinWallHud.svelte.ts';
   import type { PaletteId } from './render/colormap.ts';
+  import { viewSpecFor } from './render/views/visibility.ts';
   import { HudState, type ViewMode } from './ui/hudState.svelte.ts';
   import { shortcutFor } from './ui/shortcuts.ts';
   import SidePanel from './ui/SidePanel.svelte';
@@ -17,6 +19,7 @@
   import Toolbar from './ui/Toolbar.svelte';
   import ResultScreen from './ui/result/ResultScreen.svelte';
   import { ResultSession } from './ui/result/resultSession.svelte.ts';
+  import { ViewSettings } from './ui/views/viewSettings.svelte.ts';
 
   const { stage } = pickInitialStage(listStages(), window.location.search);
   const hud = new HudState();
@@ -24,7 +27,8 @@
   const gate = $derived(submitGate(hud));
   const thinWalls = new ThinWallHud();
   let viewport: HTMLDivElement;
-  let game: GameSession | null = null;
+  let game = $state.raw<GameSession | null>(null);
+  const views = new ViewSettings(stage.grid);
 
   onMount(() => {
     game = startGame(viewport, stage, hud, hud.palette);
@@ -46,12 +50,22 @@
       game?.scene.setPalette(id);
     },
     viewMode: (mode: ViewMode) => {
-      hud.viewMode = mode; // section / X-ray rendering: T-303
+      // a new section starts with its cut face turned towards the camera
+      if (mode === 'section' && hud.viewMode !== 'section' && game) views.flip = game.scene.views.facingFlip(views.axis);
+      hud.viewMode = mode;
     },
+    sectionAxis: (axis: Axis) => views.chooseAxis(axis, game?.scene.views.facingFlip(axis) ?? false),
     submit: () => {
-      if (game) result.open(game, hud);
+      if (!game) return;
+      hud.viewMode = 'normal'; // the result screen shows the whole part, not a section / X-ray
+      result.open(game, hud);
     },
   };
+
+  // section / X-ray: push the view to the scene whenever the mode or its settings change
+  $effect(() => {
+    if (game) game.scene.views.set(viewSpecFor(hud.viewMode, views, game.controller.state.grid));
+  });
 
   function onKeydown(ev: KeyboardEvent): void {
     if (ev.target instanceof HTMLInputElement || ev.target instanceof HTMLTextAreaElement) return;
@@ -89,7 +103,13 @@
       </div>
     {/if}
     <div class="right">
-      <SidePanel {hud} onPalette={actions.palette} onViewMode={actions.viewMode} />
+      <SidePanel
+        {hud}
+        onPalette={actions.palette}
+        onViewMode={actions.viewMode}
+        {views}
+        onSectionAxis={actions.sectionAxis}
+      />
     </div>
     <div class="bottom">
       <Toast {hud} />

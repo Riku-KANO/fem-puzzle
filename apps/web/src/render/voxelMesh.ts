@@ -95,8 +95,13 @@ export class VoxelMesh {
   private readonly layout: ChunkLayout;
   private readonly chunks: (Chunk | null)[];
   private readonly dirty = new Set<number>();
-  private readonly material = createVoxelMaterial();
+  /** shared by all chunks; public so a view can make an instance translucent (T-303 X-ray) */
+  readonly material = createVoxelMaterial();
   private readonly paint: PaintInput;
+  /** view mask (T-303 section / X-ray): only `flags[e] && mask[e]` cells are meshed */
+  private mask: Uint8Array | null = null;
+  /** scratch `flags & mask` for the chunk being rebuilt (+1 halo), full grid size */
+  private masked: Uint8Array | null = null;
 
   constructor(
     private readonly grid: Grid,
@@ -129,6 +134,26 @@ export class VoxelMesh {
     if (this.dirty.size === 0) return;
     for (const c of this.dirty) this.rebuild(c);
     this.dirty.clear();
+  }
+
+  /**
+   * Restrict the mesh to `flags[e] && mask[e]` (null = no restriction). Faces between kept and
+   * masked-out solid cells become ordinary quads — a section view gets its cut face (cap) for
+   * free, coloured by the cut cell. Only chunks around cells whose mask value changed are
+   * rebuilt (at the next `update()`). The mask is copied.
+   */
+  setMask(mask: Uint8Array | null): void {
+    const prev = this.mask;
+    if (!prev && !mask) return;
+    const changed: number[] = [];
+    for (let e = 0; e < this.grid.n; e++) {
+      const was = prev ? prev[e] !== 0 : true;
+      const now = mask ? mask[e] !== 0 : true;
+      if (was !== now) changed.push(e);
+    }
+    this.mask = mask ? mask.slice() : null;
+    if (mask && !this.masked) this.masked = new Uint8Array(this.grid.n);
+    this.markDirty(changed);
   }
 
   setUtilization(u: Float32Array | null): void {
@@ -168,7 +193,7 @@ export class VoxelMesh {
       old.mesh.geometry.dispose();
       this.chunks[index] = null;
     }
-    const data = meshChunk(this.grid, this.layout, index, this.flags);
+    const data = meshChunk(this.grid, this.layout, index, this.maskedFlags(index));
     if (data.quadCount === 0) return;
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(data.positions, 3));
@@ -186,6 +211,32 @@ export class VoxelMesh {
     this.repaint(chunk);
     this.chunks[index] = chunk;
     this.group.add(mesh);
+  }
+
+  /** Flags to mesh chunk `index` from: live flags, or `flags & mask` over the chunk + halo. */
+  private maskedFlags(index: number): Uint8Array {
+    const mask = this.mask;
+    const out = this.masked;
+    if (!mask || !out) return this.flags;
+    const g = this.grid;
+    const l = this.layout;
+    const s = l.size;
+    const cx = index % l.cx;
+    const cy = Math.floor(index / l.cx) % l.cy;
+    const cz = Math.floor(index / (l.cx * l.cy));
+    const x0 = Math.max(0, cx * s - 1);
+    const y0 = Math.max(0, cy * s - 1);
+    const z0 = Math.max(0, cz * s - 1);
+    const x1 = Math.min(g.nx, cx * s + s + 1);
+    const y1 = Math.min(g.ny, cy * s + s + 1);
+    const z1 = Math.min(g.nz, cz * s + s + 1);
+    for (let z = z0; z < z1; z++) {
+      for (let y = y0; y < y1; y++) {
+        let e = x0 + g.nx * (y + g.ny * z);
+        for (let x = x0; x < x1; x++, e++) out[e] = this.flags[e] && mask[e] ? 1 : 0;
+      }
+    }
+    return out;
   }
 
   private repaint(c: Chunk): void {
