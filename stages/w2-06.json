@@ -1,0 +1,301 @@
+{
+  "benchmark": {
+    "maxUtilization": 0.8999,
+    "method": "simp-oc",
+    "solid": "APw/AAAf+ACAH/gBwBmYA3AwDA44cA4cH2AG+AfAA+AA/D8AAAZgAIADwAHgAYAH8AAADzgAABwfAAD4B4AB4AD4HwAABmAAgAPAAcAAAANgAAAGOAAAHA8AAPAHgAHgAPw/AAA+fAAAMYwAAHAOAABgBgAA4AcAAcADgAGAAYAA/D8AAD58AAAxjAAAcA4AAGAGAADgBwABwAOAAYABgAD4HwAABmAAgAPAAcAAAANgAAAGOAAAHA8AAPAHgAHgAPw/AAAGYACAA8AB4AGAB/AAAA84AAAcHwAA+AeAAeAA/D8AAB/4AIAf+AHAGZgDcDAMDjhwDhwfYAb4B8AD4A==",
+    "volume": 0.25
+  },
+  "grid": [
+    32,
+    8,
+    8
+  ],
+  "hints": [
+    "支点は両側の壁の上のほう。荷重も上の段のまん中にかかる。",
+    "上の段だけで横につなぐと、曲げに弱い。下の青い部分の高さを使おう。",
+    "ケーブルのように下へ垂れ下がる形が、力を両側の壁へ運ぶ。"
+  ],
+  "id": "w2-06",
+  "keep": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+  "loads": [
+    {
+      "cells": [
+        [
+          15,
+          7,
+          0
+        ],
+        [
+          16,
+          7,
+          0
+        ],
+        [
+          15,
+          7,
+          1
+        ],
+        [
+          16,
+          7,
+          1
+        ],
+        [
+          15,
+          7,
+          2
+        ],
+        [
+          16,
+          7,
+          2
+        ],
+        [
+          15,
+          7,
+          3
+        ],
+        [
+          16,
+          7,
+          3
+        ],
+        [
+          15,
+          7,
+          4
+        ],
+        [
+          16,
+          7,
+          4
+        ],
+        [
+          15,
+          7,
+          5
+        ],
+        [
+          16,
+          7,
+          5
+        ],
+        [
+          15,
+          7,
+          6
+        ],
+        [
+          16,
+          7,
+          6
+        ],
+        [
+          15,
+          7,
+          7
+        ],
+        [
+          16,
+          7,
+          7
+        ]
+      ],
+      "force": [
+        0.0,
+        -82790.0,
+        0.0
+      ]
+    }
+  ],
+  "material": {
+    "E": 70000000000.0,
+    "allowable": 120000000.0,
+    "density": 2700.0,
+    "nu": 0.33
+  },
+  "solid": "/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////w==",
+  "supports": [
+    {
+      "cells": [
+        [
+          0,
+          6,
+          0
+        ],
+        [
+          0,
+          7,
+          0
+        ],
+        [
+          0,
+          6,
+          1
+        ],
+        [
+          0,
+          7,
+          1
+        ],
+        [
+          0,
+          6,
+          2
+        ],
+        [
+          0,
+          7,
+          2
+        ],
+        [
+          0,
+          6,
+          3
+        ],
+        [
+          0,
+          7,
+          3
+        ],
+        [
+          0,
+          6,
+          4
+        ],
+        [
+          0,
+          7,
+          4
+        ],
+        [
+          0,
+          6,
+          5
+        ],
+        [
+          0,
+          7,
+          5
+        ],
+        [
+          0,
+          6,
+          6
+        ],
+        [
+          0,
+          7,
+          6
+        ],
+        [
+          0,
+          6,
+          7
+        ],
+        [
+          0,
+          7,
+          7
+        ]
+      ],
+      "face": "x-",
+      "fix": "xyz"
+    },
+    {
+      "cells": [
+        [
+          31,
+          6,
+          0
+        ],
+        [
+          31,
+          7,
+          0
+        ],
+        [
+          31,
+          6,
+          1
+        ],
+        [
+          31,
+          7,
+          1
+        ],
+        [
+          31,
+          6,
+          2
+        ],
+        [
+          31,
+          7,
+          2
+        ],
+        [
+          31,
+          6,
+          3
+        ],
+        [
+          31,
+          7,
+          3
+        ],
+        [
+          31,
+          6,
+          4
+        ],
+        [
+          31,
+          7,
+          4
+        ],
+        [
+          31,
+          6,
+          5
+        ],
+        [
+          31,
+          7,
+          5
+        ],
+        [
+          31,
+          6,
+          6
+        ],
+        [
+          31,
+          7,
+          6
+        ],
+        [
+          31,
+          6,
+          7
+        ],
+        [
+          31,
+          7,
+          7
+        ]
+      ],
+      "face": "x+",
+      "fix": "xyz"
+    }
+  ],
+  "targets": {
+    "star1": 0.55,
+    "star2": 0.4,
+    "star3": 0.3
+  },
+  "title": "谷にかける橋",
+  "version": 1,
+  "voxelSize": 0.01,
+  "world": 2
+}

@@ -2,107 +2,108 @@
   "benchmark": {
     "maxUtilization": 0.8998,
     "method": "simp-oc",
-    "solid": "//////4DwP/gA4APwAPAB4AP4AEAHngAADgcAADgBwAP/D/gBgAAAAAAAAAAAAAAAARgAAAYMAAAMBwAAOAHAAMAAMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwAMAAwAAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADAAwADAADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMADAAMAAMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwAMAD/w/4AYAAAAAAAAAAAAAAAAEYAAAGDAAADAcAADgBwD//////gPA/+ADgA/AA8AHAA/gAQAeeAAAOBwAAOAHAA==",
-    "volume": 0.14990234375
+    "solid": "////////////H/j/wH/+B4D//wMf/n/wH3Ae8A5wDmAAcA4AAPx/AAfgB+ADAAAAAAAAAAAAAgAAwAMAA4ABwAAAAAAAAAAAAAAAAACAAQADgAHAAAAAAAAAAAAAAAAAAIABAAfgB+ADAAAAAAAAAAAAAgAAwAMAH/5/8B9wHvAOcA5gAHAOAAD8fwD///////////8f+P/Af/4HgP//Aw==",
+    "volume": 0.35
   },
   "grid": [
     32,
-    8,
+    5,
     8
   ],
   "hints": [
     "左はピン(動かない)、右はローラー(上下だけ支え、横には滑れる)。",
-    "上側は押しつぶされ、下側は引っ張られる。どちらも赤くなる場所に注目。"
+    "上のふちは押され、下のふちは引っぱられて赤くなる。高さのまん中(中立軸)は青い。",
+    "中立軸のあたりに穴をあけても、はりの強さはあまり落ちない。"
   ],
   "id": "w2-01",
-  "keep": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+  "keep": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
   "loads": [
     {
       "cells": [
         [
           15,
-          7,
+          4,
           0
         ],
         [
           16,
-          7,
+          4,
           0
         ],
         [
           15,
-          7,
+          4,
           1
         ],
         [
           16,
-          7,
+          4,
           1
         ],
         [
           15,
-          7,
+          4,
           2
         ],
         [
           16,
-          7,
+          4,
           2
         ],
         [
           15,
-          7,
+          4,
           3
         ],
         [
           16,
-          7,
+          4,
           3
         ],
         [
           15,
-          7,
+          4,
           4
         ],
         [
           16,
-          7,
+          4,
           4
         ],
         [
           15,
-          7,
+          4,
           5
         ],
         [
           16,
-          7,
+          4,
           5
         ],
         [
           15,
-          7,
+          4,
           6
         ],
         [
           16,
-          7,
+          4,
           6
         ],
         [
           15,
-          7,
+          4,
           7
         ],
         [
           16,
-          7,
+          4,
           7
         ]
       ],
       "force": [
         0.0,
-        -35950.0,
+        -47110.0,
         0.0
       ]
     }
@@ -113,7 +114,7 @@
     "density": 2700.0,
     "nu": 0.33
   },
-  "solid": "/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////w==",
+  "solid": "/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////w==",
   "supports": [
     {
       "cells": [
@@ -289,9 +290,9 @@
     }
   ],
   "targets": {
-    "star1": 0.4499,
-    "star2": 0.2999,
-    "star3": 0.1999
+    "star1": 0.65,
+    "star2": 0.5,
+    "star3": 0.4
   },
   "title": "両端で支えるはり",
   "version": 1,

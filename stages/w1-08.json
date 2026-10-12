@@ -1,0 +1,155 @@
+{
+  "benchmark": {
+    "maxUtilization": 0.9,
+    "method": "simp-oc",
+    "solid": "//8A//EDv4EHf8AEP2AAPjAAPBwA+A/A/wcABwAAAwAAAwAMAwAYAgAwAABgwP///wcABwAAAwAAAwAMAwAYAgAwAABgwP////8A//EDv4EHP8AEP2AAPjAAPBwA+A/A",
+    "volume": 0.3450520833333333
+  },
+  "grid": [
+    24,
+    8,
+    4
+  ],
+  "hints": [
+    "壁に固定されているのは下の3段だけ。",
+    "固定のすぐ上の角が赤くなりやすい。そこは削らずに太く残そう。",
+    "上の角の青いところは、壁に留まっていないので働いていない。"
+  ],
+  "id": "w1-08",
+  "keep": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+  "loads": [
+    {
+      "cells": [
+        [
+          22,
+          7,
+          0
+        ],
+        [
+          23,
+          7,
+          0
+        ],
+        [
+          22,
+          7,
+          1
+        ],
+        [
+          23,
+          7,
+          1
+        ],
+        [
+          22,
+          7,
+          2
+        ],
+        [
+          23,
+          7,
+          2
+        ],
+        [
+          22,
+          7,
+          3
+        ],
+        [
+          23,
+          7,
+          3
+        ]
+      ],
+      "force": [
+        0.0,
+        -7295.0,
+        0.0
+      ]
+    }
+  ],
+  "material": {
+    "E": 70000000000.0,
+    "allowable": 120000000.0,
+    "density": 2700.0,
+    "nu": 0.33
+  },
+  "solid": "////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////",
+  "supports": [
+    {
+      "cells": [
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          2,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ],
+        [
+          0,
+          1,
+          1
+        ],
+        [
+          0,
+          2,
+          1
+        ],
+        [
+          0,
+          0,
+          2
+        ],
+        [
+          0,
+          1,
+          2
+        ],
+        [
+          0,
+          2,
+          2
+        ],
+        [
+          0,
+          0,
+          3
+        ],
+        [
+          0,
+          1,
+          3
+        ],
+        [
+          0,
+          2,
+          3
+        ]
+      ],
+      "face": "x-",
+      "fix": "xyz"
+    }
+  ],
+  "targets": {
+    "star1": 0.6451,
+    "star2": 0.4951,
+    "star3": 0.3951
+  },
+  "title": "下だけ留めた腕",
+  "version": 1,
+  "voxelSize": 0.01,
+  "world": 1
+}
