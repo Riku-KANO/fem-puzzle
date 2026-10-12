@@ -1,7 +1,7 @@
 ---
 id: T-311
 title: Web shell review fixes — history/debris, host cancel tests, HUD reset, context loss
-status: doing
+status: review
 phase: 1
 depends: [T-102]
 owns:
@@ -38,6 +38,24 @@ Fix the findings of the T-102 post-merge review (reviewer report, 2026-10-12).
 6. **WebGL context** (scene.ts:176-190): `renderer.forceContextLoss()` before removing the canvas.
 
 ## Acceptance criteria
-- [ ] Each finding has a test that fails on the old code (say so in the Log).
+- [x] Each finding has a test that fails on the old code (say so in the Log).
 
 ## Log
+
+### 2026-10-12 — T-311 worker (T-102 author): all six fixed (status → review)
+
+Verify: web test 69 passed (11 files), web typecheck 0 errors / 0 warnings, web build OK,
+`scripts/verify.sh fast` all PASS.
+
+| # | fix | test (`apps/web/test/…`) | fails on old code? |
+| --- | --- | --- | --- |
+| 1 | `carveState.ts`: debris joins the open stroke only if it carved something, else `history.peek()`; `endStroke` commits only strokes with `carved.length > 0` (no-op presses never push / clear redo) | controller: *debris during a no-op press joins the carve that caused it* (exact sequence: carve island → flush → `strokeStart(null)` → result → `strokeEnd` → undo restores carve + debris); *a press that carves nothing keeps the redo stack* (regression guard) | yes (first test); second passes on old code |
+| 2 | host tests drive real cancellation: `Gate` yieldFn pins a solve between chunks, spy backend records `done`/`cancelled`; fake `post` is `structuredClone(msg, { transfer })` for every host test | host: *a carve arriving mid-solve…*, *cancel mid-solve stops it…* | host code was already correct, so they pass on it; **mutation check**: with `cancelled: () => false` both new tests fail while every pre-existing host test still passed — the old tests never exercised cancellation. Old misleading test renamed (*a carve queued while init is loading…*) |
+| 3 | (guard already in `controller.onResult`) | controller: *no debris when an undo is pending* | passes on old code (guard existed); **mutation check**: removing `!this.batcher.pending` makes it fail |
+| 4 | controller constructor resets iteration, relResidual (NaN), backend, maxUtilization, loadsConnected, converged, error, toast; syncHud covers the rest | controller: *the constructor resets every HUD field* (stale HUD in, defaults out) | yes |
+| 5 | `host.ts`: `applySolid()` updates the mirror right after each successful `backend.setSolid` (carve and setSolid) | host: *a rejected restore does not desync the solid mirror* (`StrictBackend` applies a batch fully or throws, like fem-wasm) | yes |
+| 6 | `scene.ts`: `releaseRenderer()` = `dispose()` → `forceContextLoss()` → canvas `remove()` (dispose first so the forced loss does not hit three's context-lost handler) | controller.test.ts › *StageScene teardown* (fake renderer, call order) — placed there because T-311 owns only controller/host tests | yes (helper did not exist; old dispose never called `forceContextLoss`) |
+
+Coordination: controller.ts edit is limited to the constructor's HUD-reset block — told
+T-205 (onReady) and T-303 (select) before editing; told T-205 about the host mirror fix.
+
