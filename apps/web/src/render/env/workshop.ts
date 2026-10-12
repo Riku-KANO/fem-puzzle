@@ -41,6 +41,8 @@ export interface WorkshopOptions {
 /** Baked bench lamp above the test bed (bench frame, README "Bench / room"). */
 const LAMP: [number, number, number] = [0, 0.95, -0.12];
 const SHADOW_OPACITY = 0.32;
+/** compileAsync never settles on a renderer disposed meanwhile (T-304 route change) */
+const PREPARE_TIMEOUT_MS = 4000;
 
 export class Workshop {
   readonly layout: EnvLayout;
@@ -123,7 +125,7 @@ export class Workshop {
       colorOf: (e) => this.colorOf(e),
       staticColliders: () => this.staticColliders(),
       benchY: by,
-      prepare: (o) => renderer.compileAsync(o, opts.camera, opts.scene),
+      prepare: (o) => within(renderer.compileAsync(o, opts.camera, opts.scene), PREPARE_TIMEOUT_MS),
       envMap: () => this.loaded.then(() => this.envTexture),
     });
 
@@ -285,7 +287,7 @@ export class Workshop {
     });
     const t3 = performance.now();
     try {
-      await this.opts.renderer.compileAsync(root, this.opts.camera, this.opts.scene);
+      await within(this.opts.renderer.compileAsync(root, this.opts.camera, this.opts.scene), PREPARE_TIMEOUT_MS);
     } catch {
       // warm-up only
     }
@@ -396,4 +398,13 @@ function aabbCollider(b: Aabb): BoxCollider {
     center: [(b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, (b.min[2] + b.max[2]) / 2],
     halfExtents: [(b.max[0] - b.min[0]) / 2, (b.max[1] - b.min[1]) / 2, (b.max[2] - b.min[2]) / 2],
   };
+}
+
+/** `p`, or undefined once `ms` passed (whichever comes first). */
+function within<T>(p: Promise<T>, ms: number): Promise<T | undefined> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<undefined>((resolve) => {
+    timer = setTimeout(() => resolve(undefined), ms);
+  });
+  return Promise.race([p, timeout]).finally(() => clearTimeout(timer));
 }

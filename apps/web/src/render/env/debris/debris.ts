@@ -57,6 +57,9 @@ export const DEBRIS_LIMITS = {
 } as const;
 
 const DT = 1 / 60;
+/** chip colour = mix(aluminium, voxel stress colour, CHIP_TINT) (linear RGB) */
+const ALUMINIUM = new THREE.Color(0.52, 0.54, 0.57);
+const CHIP_TINT = 0.6;
 /** far below the floor: where the GPU warm-up dummies are drawn */
 const WARM_Y = -100;
 const SHRINK_S = 0.45;
@@ -112,6 +115,8 @@ export interface DebrisOptions {
   seed?: number;
   /** delay before lazily loading Rapier + debris.glb, ms */
   preloadDelayMs?: number;
+  /** the debris.glb root (`chip_0..3`, `swarf_0` meshes); tests inject their own */
+  pieces?: () => Promise<THREE.Object3D>;
 }
 
 interface Chip {
@@ -313,7 +318,11 @@ export class DebrisFx {
     let template: THREE.Object3D;
     let envMap: THREE.Texture | null;
     try {
-      [R, template, envMap] = await Promise.all([loadRapier(), loadTemplate('debris'), this.opts.envMap?.() ?? null]);
+      [R, template, envMap] = await Promise.all([
+        loadRapier(),
+        (this.opts.pieces ?? (() => loadTemplate('debris')))(),
+        this.opts.envMap?.() ?? null,
+      ]);
     } catch (err) {
       console.warn('[debris] physics unavailable, fading instead:', err);
       this.stats.failed = true;
@@ -327,6 +336,8 @@ export class DebrisFx {
     physics.addStatic(this.opts.staticColliders());
     const { solid, block } = this.opts;
     physics.setPart(this.opts.grid, this.opts.h, (e) => solid[e] === 1 || block[e] === 1);
+    // from here on solidChanged() keeps the part collider in sync (stepping waits for `live`)
+    this.physics = physics;
     const slice1 = performance.now() - s0;
     measure('debris:world', s0, s0 + slice1);
     // The first step of a fresh world is slow (lazy WASM compilation, broad-phase build:
@@ -380,7 +391,6 @@ export class DebrisFx {
       physics.free();
       return;
     }
-    this.physics = physics;
     this.live = live;
     this.pile = pile;
     this.group.add(live.group, pile.group);
@@ -442,9 +452,9 @@ export class DebrisFx {
       const center: Vec3 = [(cell[0] + 0.5) * h, (cell[1] + 0.5) * h, (cell[2] + 0.5) * h];
       const out = outwardDir(g, this.opts.solid, cell);
       const rgb = this.opts.colorOf(e);
-      for (let k = 0; k < n; k++) {
-        this.queue.push({ spawn: chipSpawn(this.rand, center, out, kin), color: new THREE.Color(rgb[0], rgb[1], rgb[2]) });
-      }
+      // metal shavings that still hint at the stress colour of the voxel they came from
+      const color = new THREE.Color(rgb[0], rgb[1], rgb[2]).lerp(ALUMINIUM, 1 - CHIP_TINT);
+      for (let k = 0; k < n; k++) this.queue.push({ spawn: chipSpawn(this.rand, center, out, kin), color });
     });
     if (this.queue.length > DEBRIS_LIMITS.maxQueue) this.queue.splice(0, this.queue.length - DEBRIS_LIMITS.maxQueue);
   }

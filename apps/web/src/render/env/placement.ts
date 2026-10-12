@@ -230,6 +230,7 @@ function placeLoads(stage: Stage, g: Grid, solid: Uint8Array, block: Uint8Array)
   };
   const out: LoadJig[] = [];
   const byKey = new Map<string, LoadJig>();
+  const patches: { jig: LoadJig; face: PatchFace }[] = [];
   stageCases(stage).forEach((lc, caseIndex) => {
     lc.loads.forEach((load, loadIndex) => {
       if (load.cells.length === 0) return;
@@ -280,9 +281,36 @@ function placeLoads(stage: Stage, g: Grid, solid: Uint8Array, block: Uint8Array)
       };
       byKey.set(key, jig);
       out.push(jig);
+      patches.push({ jig, face });
     });
   });
+  shareSpreaders(patches);
   return out;
+}
+
+/**
+ * Pushing jigs whose patch lies inside a bigger patch on the same face plane (e.g. a point
+ * load on top of a distributed one) lose their own spreader and stand on the bigger plate.
+ */
+function shareSpreaders(patches: { jig: LoadJig; face: PatchFace }[]): void {
+  const within = (a: Aabb, b: Aabb) => [0, 1, 2].every((k) => a.min[k]! >= b.min[k]! - 1e-9 && a.max[k]! <= b.max[k]! + 1e-9);
+  for (const p of patches) {
+    if (p.jig.kind !== 'cylinder' || p.jig.lift !== 0) continue;
+    const host = patches.find(
+      (q) =>
+        q !== p &&
+        q.jig.spreader !== null &&
+        q.jig.lift === 0 &&
+        q.face.normal.every((c, k) => c === p.face.normal[k]) &&
+        q.face.center.every((c, k) => p.face.normal[k] === 0 || Math.abs(c - p.face.center[k]!) < 1e-9) &&
+        within(p.face.cellBox, q.face.cellBox) &&
+        !within(q.face.cellBox, p.face.cellBox),
+    );
+    if (!host) continue;
+    p.jig.spreader = null;
+    p.jig.offset = SPREADER.thickness;
+    p.jig.bounds = loadBounds(p.jig.kind, p.jig.pose, null, p.jig.offset, p.jig.lift);
+  }
 }
 
 interface PatchFace {

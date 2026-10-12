@@ -182,9 +182,30 @@ describe('jig placement for every stage in stages/*.json', () => {
     expect(L.supports[0]!.pose.position[0]).toBeCloseTo(0.01, 12);
     expect(L.supports[1]!.pose.position[0]).toBeCloseTo(0.31, 12);
     const l = L.loads[0]!;
-    expectVec(new THREE.Vector3(...l.pose.position), [0.16, 0.08, 0.04], 12);
+    expectVec(new THREE.Vector3(...l.pose.position), [0.16, stage.grid[1] * stage.voxelSize, 0.04], 12);
     expect(l.spreader![0]).toBeCloseTo(0.02, 12);
     expect(l.spreader![1]).toBeCloseTo(0.08, 12);
+  });
+});
+
+describe('overlapping load patches', () => {
+  it('a patch inside another one on the same face shares its spreader (no stacked plates)', () => {
+    const all: Vec3[] = [];
+    for (let x = 0; x < 10; x++) for (let z = 0; z < 4; z++) all.push([x, 5, z]);
+    const inner: Vec3[] = all.filter((c) => c[0] >= 6 && c[0] <= 7);
+    const stage = boxStage([10, 6, 4], {
+      supports: [{ face: 'y-', fix: 'xyz' }],
+      loads: [
+        { cells: all, force: [0, -1000, 0] },
+        { cells: inner, force: [0, -500, 0] },
+      ],
+    });
+    const [outer, small] = computeLayout(stage).loads;
+    expect(outer!.spreader).not.toBeNull();
+    expect(small!.spreader).toBeNull();
+    // the small jig's cylinder rests on the outer plate
+    expect(small!.offset).toBe(0.008);
+    expect(small!.pose.position[1]).toBeCloseTo(0.06, 12);
   });
 });
 
