@@ -62,7 +62,10 @@ run_stages() {
 run_stage_tests() {
   if has_blender; then step stages-test bash scripts/build-stages.sh --test; else skip stages-test "(no Blender)"; fi
 }
-run_wasm() { step wasm-build pnpm build:wasm; }
+run_wasm() {
+  step wasm-build pnpm build:wasm
+  step wasm-smoke node crates/fem-wasm/tests/node-smoke.mjs
+}
 run_web_build() { step web-build pnpm --filter @stress-carve/web build; }
 run_e2e() {
   if has_e2e; then step e2e pnpm --filter @stress-carve/web e2e; else skip e2e "(no playwright config yet)"; fi
