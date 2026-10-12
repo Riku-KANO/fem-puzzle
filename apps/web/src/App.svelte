@@ -107,6 +107,9 @@
   });
 
   $effect(() => () => router.dispose());
+  // Save the open stage's carve before the next screen reads the records: the session effect's
+  // cleanup (which also saves) runs only after the select screen has mounted (T-315).
+  router.onBeforeChange = () => runner.save();
 
   const actions = {
     brush: (size: BrushSize) => game?.controller.setBrush(size),

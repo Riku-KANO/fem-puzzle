@@ -100,7 +100,7 @@ test.describe('campaign (mock backend)', () => {
     expect(s.solidCount).toBe(slot.noStars.solidCount);
     await submitButton(page).click();
     await expect(card).toContainText('合格(星なし)');
-    // let the autosave run first: leaving sooner hides 途中 on the select screen (fixme below)
+    // (waiting for the autosave is no longer required since T-315 flushes it on route change)
     await expect.poll(() => savedCarve(page, STAGE_ID), { message: 'carve autosaved' }).not.toBeNull();
     await card.getByRole('button', { name: 'ステージ選択へ' }).click();
     await expectScreen(page, 'select');
@@ -181,13 +181,8 @@ test.describe('campaign (mock backend)', () => {
     expect(errors).toEqual([]);
   });
 
-  // Run it with E2E_RUN_FIXME=1 (fails deterministically until the bug is fixed).
+  // T-315 regression: the carve is flushed before the route switches.
   test('leaving right after a carve shows 途中 on the select screen', async ({ page }) => {
-    test.fixme(
-      !process.env.E2E_RUN_FIXME,
-      'known bug (T-313 log): leaving within the 500 ms autosave interval saves the carve on close, ' +
-        'but the select screen snapshotted the records before that — 途中 shows only after a reload',
-    );
     await openStage(page, STAGE_ID, 'mock');
     await skipTutorial(page);
     await selectBrush(page, 5);
