@@ -146,14 +146,46 @@ export function stageCases(stage: Stage): LoadCase[] {
   return [{ name: 'default', loads: stage.loads }];
 }
 
-/** keep ∪ support cells ∪ load cells, as 0/1 flags. */
+const FACE_AXIS: Record<Face, 0 | 1 | 2> = { 'x-': 0, 'x+': 0, 'y-': 1, 'y+': 1, 'z-': 2, 'z+': 2 };
+
+/**
+ * Element indices of one support: the listed `cells`, or — for a face-only support — every
+ * initially solid cell touching that grid face. Mirrors `Stage::support_cells` in Rust.
+ */
+export function supportCells(stage: Stage, support: Support, solid: Uint8Array): number[] {
+  const g = stage.grid;
+  if (support.cells) return support.cells.map((c) => elementIndex(g, c[0], c[1], c[2]));
+  const axis = FACE_AXIS[support.face];
+  const layer = support.face.endsWith('+') ? g[axis] - 1 : 0;
+  const out: number[] = [];
+  for (let z = 0; z < g[2]; z++) {
+    for (let y = 0; y < g[1]; y++) {
+      for (let x = 0; x < g[0]; x++) {
+        const e = elementIndex(g, x, y, z);
+        if ([x, y, z][axis] === layer && solid[e] === 1) out.push(e);
+      }
+    }
+  }
+  return out;
+}
+
+/** Supported cells of all supports as 0/1 flags (connectivity is measured from these). */
+export function supportedCells(stage: Stage): Uint8Array {
+  const n = elementCount(stage.grid);
+  const solid = decodeBitmask(stage.solid, n);
+  const out = new Uint8Array(n);
+  for (const s of stage.supports) for (const e of supportCells(stage, s, solid)) out[e] = 1;
+  return out;
+}
+
+/** keep ∪ supported cells ∪ load cells, as 0/1 flags. */
 export function effectiveKeep(stage: Stage): Uint8Array {
   const keep = decodeBitmask(stage.keep, elementCount(stage.grid));
-  const mark = (c: Vec3) => {
-    keep[elementIndex(stage.grid, c[0], c[1], c[2])] = 1;
-  };
-  for (const s of stage.supports) s.cells?.forEach(mark);
-  for (const lc of stageCases(stage)) for (const l of lc.loads) l.cells.forEach(mark);
+  const supported = supportedCells(stage);
+  for (let e = 0; e < keep.length; e++) keep[e]! |= supported[e]!;
+  for (const lc of stageCases(stage)) {
+    for (const l of lc.loads) for (const c of l.cells) keep[elementIndex(stage.grid, c[0], c[1], c[2])] = 1;
+  }
   return keep;
 }
 

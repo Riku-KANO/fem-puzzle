@@ -6,6 +6,7 @@ phase: 0
 depends: [T-002]
 owns:
   - crates/fem/**
+  - '!crates/fem/src/mg/**'   # T-201 develops multigrid in parallel
 verify:
   - cargo test -p fem
   - cargo clippy -p fem --all-targets -- -D warnings

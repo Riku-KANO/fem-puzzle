@@ -25,6 +25,17 @@ paths at the same time.
 7. Commit everything on your branch with messages `T-xxx: <what>` (end each commit message
    with the attribution trailer you were given, if any). Do not merge into main.
 
+## Coordinating with other workers
+
+The orchestrator gives you a roster (task → agent id → branch). Follow
+`docs/loop/README.md` → "Talking to each other":
+- Use `SendMessage` with a peer's agent id; first line `[T-you → T-them] <topic>`.
+  If a send fails, send it to `main` and name the intended recipient.
+- If others depend on you: commit your public API early, then message them the commit hash.
+- If you depend on someone: `git merge <their-branch>` to pull their work; never edit their
+  paths — ask them. Contract changes go to `main` only.
+- Answer incoming questions promptly and briefly; record decisions in your task Log.
+
 ## Report (your final message)
 
 - branch name and worktree path, commit list

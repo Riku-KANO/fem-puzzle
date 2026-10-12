@@ -11,6 +11,8 @@ description: Run one round of the parallel development loop for STRESS CARVE —
 - `git status` must be clean on `main`; `bash scripts/verify.sh fast` must pass. If main is
   red, fix that first (it is the only thing worth doing).
 - `node scripts/tasks.mjs plan N --json` → the tasks for this round (disjoint `owns`).
+  Add `--early` to also start tasks whose deps are in progress (contract-first, see
+  docs/loop/README.md); integrate those only after their deps.
   Nothing ready → report the board (`node scripts/tasks.mjs`) and what blocks progress; stop.
 - Stub tasks (body says "Stub") must be fleshed out (goal, requirements, acceptance
   criteria, verify) and committed before dispatch.
@@ -24,6 +26,9 @@ For each planned task: `node scripts/tasks.mjs set <ID> doing`, commit the board
 - prompt: `Task <ID>: docs/tasks/<file>. Branch: task/<ID>-<slug>.` plus anything learned
   in earlier rounds that the task file does not say yet (put it in the task file instead
   when possible).
+
+Then send every running worker the roster (task → agent id → branch) with `SendMessage`,
+and tell producers which consumers to notify.
 
 ## 3. Review & integrate (as each worker finishes)
 1. Read the worker's report. If verify was not green or criteria are unmet, either send it

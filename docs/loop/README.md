@@ -41,13 +41,39 @@ history.
 - **Isolation.** Each worker runs in its own git worktree/branch with its own `target/` and
   `node_modules/`; integration happens one branch at a time through the merge gate.
 
+## Early start and ownership carve-outs
+
+- `node scripts/tasks.mjs plan N --early` also schedules tasks whose dependencies are still
+  *in progress*, as long as the interface between them is fixed by a contract. The early
+  worker codes against the spec, pulls the producer's in-progress branch when it needs real
+  code (`git merge <producer-branch>` — worktrees share one object store), and is integrated
+  only **after** its dependencies land on main.
+- `owns` entries starting with `!` carve a sub-path out (`crates/fem/**` +
+  `!crates/fem/src/mg/**`), so a new module can be built while its parent crate is in progress.
+
+## Talking to each other
+
+Workers coordinate directly with `SendMessage`, so the orchestrator is not a bottleneck.
+
+| who | does what |
+| --- | --- |
+| orchestrator | sends every worker the **roster** (task → agent id → branch) when a round starts or changes; approves contract changes; relays when a direct send fails |
+| producer (a task others depend on) | commits its public surface early ("API skeleton" commit), then messages consumers with the commit hash and what changed; answers questions; never breaks an announced API silently |
+| consumer | pulls the producer branch (`git merge`), never edits producer-owned paths — asks the producer instead; reports mismatches with the spec to the producer *and* `main` |
+
+Message format: first line `[T-xxx → T-yyy] <topic>` (self-contained), then specifics —
+commit hashes, file paths, exact signatures. Keep it short; long-lived facts belong in the
+task file's Log, not in chat. If a send to a sibling fails, send to `main` naming the
+intended recipient. Contract changes (`docs/specs`, `crates/stage`, `packages/protocol`) are
+proposed to `main` only.
+
 ## Running a round (in a Claude Code session)
 
 ```
 /dispatch            # or: /dispatch 3   (max parallel workers)
 ```
 
-or manually: `node scripts/tasks.mjs plan 3` → spawn one `task-worker` per task with
+or manually: `node scripts/tasks.mjs plan 3 [--early]` → spawn one `task-worker` per task with
 worktree isolation → review → `scripts/integrate.sh <branch>` for each → mark `done`.
 For continuous operation combine with `/loop` (e.g. `/loop /dispatch`), which re-runs a
 round whenever the previous one finishes. Stop conditions: nothing `ready`, a gate fails
