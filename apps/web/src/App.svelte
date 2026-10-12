@@ -98,6 +98,7 @@
   };
 
   function onKeydown(ev: KeyboardEvent): void {
+    if (!game) return; // title / select screens: keep Space/Enter for buttons
     if (ev.target instanceof HTMLInputElement || ev.target instanceof HTMLTextAreaElement) return;
     const action = shortcutFor(ev);
     if (!action) return;
