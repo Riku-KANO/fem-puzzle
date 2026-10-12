@@ -5,7 +5,8 @@
 // lives in grid units inside `domain` (scaled by the voxel size). Extension points:
 //   - T-302 deformation: `voxels.meshes()` (vertex → node ids) + `lastResult` displacements;
 //   - T-303 section/X-ray: `voxels.meshes()` materials (clipping), `pickFilter`;
-//   - T-307/T-310 environment & debris: `env` group, `elementsRemoved()`.
+//   - T-307/T-310 environment & debris: `env` group, `elementsRemoved()`;
+//   - T-308 thin-wall warning: `thinWalls` (kept in sync in `solidChanged`).
 
 import type { ResultMsg, Vec3 } from '@stress-carve/protocol';
 import * as THREE from 'three';
@@ -14,6 +15,7 @@ import type { BrushSelection } from '../game/brush.ts';
 import type { CarveState } from '../game/carveState.ts';
 import type { RemovalCause, ViewPort } from '../game/controller.ts';
 import { cellCoords } from '../game/grid.ts';
+import { ThinWallMap } from '../game/thickness/thinWalls.ts';
 import type { PaletteId } from './colormap.ts';
 import { buildJigs, supportPatches } from './jigs.ts';
 import { raycastGrid, type VoxelHit } from './picking.ts';
@@ -34,6 +36,8 @@ export class StageScene implements ViewPort {
   /** environment placeholder (bench) — T-307/T-310 replace its contents */
   readonly env = new THREE.Group();
   readonly voxels: VoxelMesh;
+  /** cells thinner than the 2-voxel minimum (T-308 warning tint + HUD count) */
+  readonly thinWalls: ThinWallMap;
   /** cells that stop picking rays (T-303 narrows this for section/X-ray views) */
   pickFilter: (element: number) => boolean;
   /** latest current solver result (T-302 reads displacements from here) */
@@ -84,6 +88,8 @@ export class StageScene implements ViewPort {
     this.domain.scale.setScalar(this.h);
     this.domain.name = 'domain';
     this.voxels = new VoxelMesh(g, state.solid, state.keep, palette);
+    this.thinWalls = new ThinWallMap(g, state.solid, state.keep);
+    this.voxels.setThin(this.thinWalls.thin);
     this.domain.add(this.voxels.group);
     if (state.block.some((b) => b === 1)) this.domain.add(buildBlockMesh(g, state.block));
     const boxGeo = new THREE.BoxGeometry(1.04, 1.04, 1.04);
@@ -123,6 +129,7 @@ export class StageScene implements ViewPort {
 
   solidChanged(cells: readonly number[]): void {
     this.voxels.markDirty(cells);
+    this.voxels.markDirty(this.thinWalls.update(cells));
   }
 
   setUtilization(u: Float32Array | null): void {
