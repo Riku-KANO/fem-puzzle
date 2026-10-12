@@ -1,5 +1,5 @@
-//! One multigrid level: its operator `A_l = M_l K_l M_l + (I − M_l)`, diagonal, mask and
-//! work vectors.
+//! One multigrid level: its operator `A_l = M_l K_l M_l + (I − M_l)`, diagonal, mask,
+//! per-DOF smoother damping and work vectors.
 
 use super::grid::node_elems;
 use super::spectral::lambda_max_bound;
@@ -8,6 +8,9 @@ use crate::hex8::{Ke, mul24};
 
 /// Squarings for the `Ke1` bound (computed once; overestimate ≤ 24^(1/2048)).
 const KE1_SQUARINGS: u32 = 10;
+
+/// Local node index from its offset bits `dx + 2 dy + 4 dz`.
+const LOCAL_FROM_BITS: [usize; 8] = [0, 1, 3, 2, 4, 5, 7, 6];
 
 /// How the element matrices of a level are represented.
 #[derive(Clone, Debug)]
@@ -34,16 +37,27 @@ pub(crate) enum ElemOp {
     },
 }
 
+/// How the per-DOF bound `λᵢ ≥` "local `λ_max(D⁻¹A)`" is obtained (see [`Level::update_nodes`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Bound {
+    /// `λᵢ = Σₑ λₑ Dₑ,ᵢᵢ / Aᵢᵢ` from per-element spectral bounds.
+    Element,
+    /// `λᵢ = Σⱼ |Aᵢⱼ| / Aᵢᵢ` (assembled Gershgorin / l1 row ratio).
+    L1,
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct Level {
     pub grid: Grid,
     pub op: ElemOp,
     /// Per DOF: unknown of this level (diagonal > 0 and, on the finest level, free).
     pub free: Vec<bool>,
+    /// Diagonal of `K` (0 where masked).
+    pub diag: Vec<f64>,
     /// `w_i / A_ii` on free DOFs, 1 on masked DOFs (exact inverse of the identity block).
     pub inv_diag: Vec<f64>,
-    /// Smallest and largest damping `w_i` over free DOFs.
-    pub damping: (f64, f64),
+    /// Element DOF offsets relative to `3 · node0(e)`.
+    dof_off: [usize; 24],
     /// Work vectors: right-hand side, correction, temporary.
     pub r: Vec<f64>,
     pub z: Vec<f64>,
@@ -79,12 +93,14 @@ impl Level {
 
     fn with_op(grid: Grid, op: ElemOp) -> Self {
         let nd = grid.dofs();
+        let nodes = grid.node_offsets();
         Self {
             grid,
             op,
             free: vec![false; nd],
+            diag: vec![0.0; nd],
             inv_diag: vec![1.0; nd],
-            damping: (0.0, 0.0),
+            dof_off: std::array::from_fn(|i| 3 * nodes[i / 3] + i % 3),
             r: vec![0.0; nd],
             z: vec![0.0; nd],
             t: vec![0.0; nd],
@@ -94,6 +110,36 @@ impl Level {
     #[cfg(test)]
     pub fn n_dofs(&self) -> usize {
         self.free.len()
+    }
+
+    /// Smallest and largest damping `wᵢ = inv_diagᵢ · Aᵢᵢ` over free DOFs.
+    pub fn damping(&self) -> (f64, f64) {
+        let mut out = (f64::INFINITY, 0.0f64);
+        for ((&inv, &d), &f) in self.inv_diag.iter().zip(&self.diag).zip(&self.free) {
+            if f {
+                out = (out.0.min(inv * d), out.1.max(inv * d));
+            }
+        }
+        if out.1 > 0.0 { out } else { (0.0, 0.0) }
+    }
+
+    /// Calls `f(e, 3 · node0(e))` for every element in index order.
+    #[inline]
+    fn for_each_elem(&self, mut f: impl FnMut(usize, usize)) {
+        let g = &self.grid;
+        let sx = g.nx + 1;
+        let sxy = sx * (g.ny + 1);
+        let mut e = 0;
+        for z in 0..g.nz {
+            for y in 0..g.ny {
+                let mut base = 3 * (sx * y + sxy * z);
+                for _ in 0..g.nx {
+                    f(e, base);
+                    e += 1;
+                    base += 3;
+                }
+            }
+        }
     }
 
     /// Element matrix `K_e` with masking applied (rows/cols of masked DOFs zero).
@@ -118,9 +164,9 @@ impl Level {
                 } else {
                     let dofs = self.grid.element_dofs(e);
                     let m: [bool; 24] = std::array::from_fn(|i| free_in[dofs[i]]);
-                    for i in 0..24 {
-                        for j in 0..24 {
-                            out[i * 24 + j] = if m[i] && m[j] {
+                    for (i, row) in out.chunks_exact_mut(24).enumerate() {
+                        for (j, o) in row.iter_mut().enumerate() {
+                            *o = if m[i] && m[j] {
                                 c * ke1[i * 24 + j]
                             } else {
                                 0.0
@@ -143,7 +189,7 @@ impl Level {
     /// `y = A_l x`.
     pub fn apply(&self, x: &[f64], y: &mut [f64]) {
         y.fill(0.0);
-        let g = &self.grid;
+        let off = &self.dof_off;
         match &self.op {
             ElemOp::Fine {
                 ke1,
@@ -152,48 +198,45 @@ impl Level {
                 all_free,
                 ..
             } => {
-                for (e, &c) in coef.iter().enumerate() {
+                self.for_each_elem(|e, base| {
+                    let c = coef[e];
                     if c == 0.0 {
-                        continue;
+                        return;
                     }
-                    let dofs = g.element_dofs(e);
                     if all_free[e] {
-                        let xe: [f64; 24] = std::array::from_fn(|i| x[dofs[i]]);
+                        let xe: [f64; 24] = std::array::from_fn(|i| x[base + off[i]]);
                         let ye = mul24(ke1, &xe);
-                        for (d, v) in dofs.iter().zip(ye) {
-                            y[*d] += c * v;
+                        for (o, v) in off.iter().zip(ye) {
+                            y[base + o] += c * v;
                         }
                     } else {
-                        let xe: [f64; 24] =
-                            std::array::from_fn(
-                                |i| {
-                                    if free_in[dofs[i]] { x[dofs[i]] } else { 0.0 }
-                                },
-                            );
+                        let xe: [f64; 24] = std::array::from_fn(|i| {
+                            let d = base + off[i];
+                            if free_in[d] { x[d] } else { 0.0 }
+                        });
                         let ye = mul24(ke1, &xe);
-                        for (d, v) in dofs.iter().zip(ye) {
-                            if free_in[*d] {
-                                y[*d] += c * v;
+                        for (o, v) in off.iter().zip(ye) {
+                            if free_in[base + o] {
+                                y[base + o] += c * v;
                             }
                         }
                     }
-                }
+                });
             }
             ElemOp::Stored { mats, nonzero, .. } => {
-                for (e, &nz) in nonzero.iter().enumerate() {
-                    if !nz {
-                        continue;
+                self.for_each_elem(|e, base| {
+                    if !nonzero[e] {
+                        return;
                     }
-                    let dofs = g.element_dofs(e);
-                    let xe: [f64; 24] = std::array::from_fn(|i| x[dofs[i]]);
+                    let xe: [f64; 24] = std::array::from_fn(|i| x[base + off[i]]);
                     let k: &Ke = mats[e * 576..e * 576 + 576]
                         .try_into()
                         .unwrap_or_else(|_| unreachable!("576-element chunk"));
                     let ye = mul24(k, &xe);
-                    for (d, v) in dofs.iter().zip(ye) {
-                        y[*d] += v;
+                    for (o, v) in off.iter().zip(ye) {
+                        y[base + o] += v;
                     }
-                }
+                });
             }
         }
         for ((yd, &xd), &f) in y.iter_mut().zip(x).zip(&self.free) {
@@ -203,103 +246,23 @@ impl Level {
         }
     }
 
-    /// Recompute `free`, the diagonal and the per-DOF damping; on the finest level also
-    /// `all_free`.
-    ///
-    /// Damping: with per-element bounds `xₑᵀKₑxₑ ≤ λₑ xₑᵀDₑxₑ` (`Dₑ = diag Kₑ`),
-    /// `xᵀAx ≤ Σᵢ λᵢ Aᵢᵢ xᵢ²` with `λᵢ = Σₑ λₑ Dₑ,ᵢᵢ / Aᵢᵢ`. Choosing
-    /// `wᵢ = min(ω, cap / λᵢ)` gives `A ≤ cap · W⁻¹` for `W = diag(wᵢ / Aᵢᵢ)`, so the Jacobi
-    /// smoother `z += W (r − A z)` is A-norm convergent for `cap < 2`.
-    ///
-    /// With `l1`, `λᵢ = Σⱼ |Aᵢⱼ| / Aᵢᵢ` (assembled Gershgorin row ratio) is used instead;
-    /// `W⁻¹ ≥ diag(Σⱼ|Aᵢⱼ|)/cap ≥ A/cap` holds as well (diagonally dominant difference).
-    pub fn update_diag(&mut self, omega: f64, cap: f64, l1: bool) {
+    /// Finest level: refresh `all_free` of the given elements (after `coef`/`free_in` changed).
+    pub fn refresh_all_free(&mut self, elems: &[usize]) {
         let g = self.grid;
-        // Scratch: t = diagonal, z = Σₑ λₑ Dₑ,ᵢᵢ.
-        let (diag, lacc) = (&mut self.t, &mut self.z);
-        diag.fill(0.0);
-        lacc.fill(0.0);
-        match &mut self.op {
-            ElemOp::Fine {
-                ke1,
-                coef,
-                free_in,
-                all_free,
-                lam,
-            } => {
-                for (e, &c) in coef.iter().enumerate() {
-                    if c == 0.0 {
-                        all_free[e] = false;
-                        continue;
-                    }
-                    let dofs = g.element_dofs(e);
-                    let mut af = true;
-                    for (i, &d) in dofs.iter().enumerate() {
-                        if free_in[d] {
-                            let v = c * ke1[i * 25];
-                            diag[d] += v;
-                            lacc[d] += *lam * v;
-                        } else {
-                            af = false;
-                        }
-                    }
-                    all_free[e] = af;
-                }
-                for ((f, &fi), &d) in self.free.iter_mut().zip(free_in.iter()).zip(diag.iter()) {
-                    *f = fi && d > 0.0;
-                }
-            }
-            ElemOp::Stored {
-                mats, nonzero, lam, ..
-            } => {
-                for (e, &nz) in nonzero.iter().enumerate() {
-                    if !nz {
-                        continue;
-                    }
-                    let k = &mats[e * 576..e * 576 + 576];
-                    for (i, &d) in g.element_dofs(e).iter().enumerate() {
-                        let v = k[i * 25];
-                        diag[d] += v;
-                        lacc[d] += lam[e] * v;
-                    }
-                }
-                for (f, &d) in self.free.iter_mut().zip(diag.iter()) {
-                    *f = d > 0.0;
-                }
-            }
-        }
-        if l1 {
-            let mut rows = std::mem::take(&mut self.z);
-            self.l1_rows(&mut rows);
-            self.z = rows;
-        }
-        let (diag, lacc) = (&self.t, &self.z);
-        let (mut wmin, mut wmax) = (f64::INFINITY, 0.0f64);
-        for (((inv, &d), &l), &f) in self
-            .inv_diag
-            .iter_mut()
-            .zip(diag.iter())
-            .zip(lacc.iter())
-            .zip(&self.free)
+        if let ElemOp::Fine {
+            coef,
+            free_in,
+            all_free,
+            ..
+        } = &mut self.op
         {
-            *inv = if f {
-                // λᵢ = l / d; w = min(ω, cap / λᵢ).
-                let w = if l > 0.0 {
-                    omega.min(cap * d / l)
-                } else {
-                    omega
-                };
-                wmin = wmin.min(w);
-                wmax = wmax.max(w);
-                w / d
-            } else {
-                1.0
-            };
+            for &e in elems {
+                all_free[e] = coef[e] != 0.0 && g.element_dofs(e).iter().all(|&d| free_in[d]);
+            }
         }
-        self.damping = if wmax > 0.0 { (wmin, wmax) } else { (0.0, 0.0) };
     }
 
-    /// Row `i` of element `e`'s (masked) matrix into `out`; `false` for an all-zero element.
+    /// Row `i` of element `e`'s (masked) matrix into `out`; `false` for an all-zero row.
     fn elem_row(&self, e: usize, dofs: &[usize; 24], i: usize, out: &mut [f64; 24]) -> bool {
         match &self.op {
             ElemOp::Fine {
@@ -328,39 +291,90 @@ impl Level {
         }
     }
 
-    /// `out[d] = Σⱼ |K_dj|` of the assembled (masked) `K`, node by node.
-    fn l1_rows(&self, out: &mut [f64]) {
-        // Local node index from its offset bits dx + 2 dy + 4 dz.
-        const LOCAL: [usize; 8] = [0, 1, 3, 2, 4, 5, 7, 6];
+    /// Per-element spectral bound `λₑ` of element `e`.
+    fn elem_lambda(&self, e: usize) -> f64 {
+        match &self.op {
+            ElemOp::Fine { lam, .. } => *lam,
+            ElemOp::Stored { lam, .. } => lam[e],
+        }
+    }
+
+    /// Recompute `free`, `diag` and the smoother weights `inv_diag` of the DOFs of the
+    /// given nodes, node by node (the result does not depend on which other nodes are
+    /// updated, so incremental and full updates agree bit for bit).
+    ///
+    /// Damping: if `xᵀAx ≤ Σᵢ λᵢ Aᵢᵢ xᵢ²` for all `x`, then `wᵢ = min(ω, cap / λᵢ)` gives
+    /// `A ≤ cap · W⁻¹` for `W = diag(wᵢ / Aᵢᵢ)`, so the Jacobi smoother `z += W (r − A z)`
+    /// is A-norm convergent for `cap < 2`. Valid choices of `λᵢ` ([`Bound`]):
+    /// - element bounds `xₑᵀKₑxₑ ≤ λₑ xₑᵀDₑxₑ` (`Dₑ = diag Kₑ`) summed over elements give
+    ///   `λᵢ = Σₑ λₑ Dₑ,ᵢᵢ / Aᵢᵢ`;
+    /// - `λᵢ = Σⱼ |Aᵢⱼ| / Aᵢᵢ`, since `diag(Σⱼ|Aᵢⱼ|) − A` is diagonally dominant.
+    pub fn update_nodes(&mut self, nodes: &[usize], omega: f64, cap: f64, bound: Bound) {
         let g = self.grid;
         let mut elems = Vec::with_capacity(8);
         let mut buf = [0.0f64; 3 * 81];
         let mut row = [0.0f64; 24];
-        for n in 0..g.nodes() {
+        for &n in nodes {
             node_elems(&g, n, &mut elems);
-            buf.fill(0.0);
             let [ni, nj, nk] = g.node_coords(n);
+            let mut d = [0.0f64; 3];
+            let mut lacc = [0.0f64; 3];
+            if bound == Bound::L1 {
+                buf.fill(0.0);
+            }
             for &e in &elems {
                 let [x, y, z] = g.element_coords(e);
-                let a = LOCAL[(ni - x) + 2 * (nj - y) + 4 * (nk - z)];
+                let a = LOCAL_FROM_BITS[(ni - x) + 2 * (nj - y) + 4 * (nk - z)];
                 let dofs = g.element_dofs(e);
+                let lam_e = self.elem_lambda(e);
                 for r in 0..3 {
-                    if !self.elem_row(e, &dofs, 3 * a + r, &mut row) {
+                    let i = 3 * a + r;
+                    if !self.elem_row(e, &dofs, i, &mut row) {
                         continue;
                     }
-                    for (b, off) in HEX8_NODE_OFFSETS.iter().enumerate() {
-                        // Neighbour offset in {-1, 0, 1}³ relative to node n.
-                        let idx = (x + off[0] + 1 - ni)
-                            + 3 * (y + off[1] + 1 - nj)
-                            + 9 * (z + off[2] + 1 - nk);
-                        for c in 0..3 {
-                            buf[r * 81 + 3 * idx + c] += row[3 * b + c];
+                    d[r] += row[i];
+                    match bound {
+                        Bound::Element => lacc[r] += lam_e * row[i],
+                        Bound::L1 => {
+                            for (b, off) in HEX8_NODE_OFFSETS.iter().enumerate() {
+                                // Neighbour offset in {-1, 0, 1}³ relative to node n.
+                                let idx = (x + off[0] + 1 - ni)
+                                    + 3 * (y + off[1] + 1 - nj)
+                                    + 9 * (z + off[2] + 1 - nk);
+                                let dst = &mut buf[r * 81 + 3 * idx..r * 81 + 3 * idx + 3];
+                                for (o, v) in dst.iter_mut().zip(&row[3 * b..3 * b + 3]) {
+                                    *o += v;
+                                }
+                            }
                         }
                     }
                 }
             }
+            if bound == Bound::L1 {
+                for (r, l) in lacc.iter_mut().enumerate() {
+                    *l = buf[r * 81..r * 81 + 81].iter().map(|v| v.abs()).sum();
+                }
+            }
             for r in 0..3 {
-                out[3 * n + r] = buf[r * 81..r * 81 + 81].iter().map(|v| v.abs()).sum();
+                let dof = 3 * n + r;
+                let free_in = match &self.op {
+                    ElemOp::Fine { free_in, .. } => free_in[dof],
+                    ElemOp::Stored { .. } => true,
+                };
+                let f = free_in && d[r] > 0.0;
+                self.free[dof] = f;
+                self.diag[dof] = if f { d[r] } else { 0.0 };
+                self.inv_diag[dof] = if f {
+                    // λᵢ = lacc / d; w = min(ω, cap / λᵢ).
+                    let w = if lacc[r] > 0.0 {
+                        omega.min(cap * d[r] / lacc[r])
+                    } else {
+                        omega
+                    };
+                    w / d[r]
+                } else {
+                    1.0
+                };
             }
         }
     }
