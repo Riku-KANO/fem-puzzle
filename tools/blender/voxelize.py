@@ -131,6 +131,7 @@ def _cells_inside(solid: Solid, centres: np.ndarray, candidates: np.ndarray, ste
 def voxelize_scene(scene: bpy.types.Scene | None = None) -> SceneStage:
     """Build the stage dict (contract format, not yet validated) from a scene."""
     scene = scene or bpy.context.scene
+    bpy.context.view_layer.update()  # apply pending transform edits before evaluating
     depsgraph = bpy.context.evaluated_depsgraph_get()
     report: list[str] = []
 
@@ -152,7 +153,7 @@ def voxelize_scene(scene: bpy.types.Scene | None = None) -> SceneStage:
     grid = []
     for extent in hi - lo:
         r = extent / h
-        n = round(r) if abs(r - round(r)) < 1e-4 else math.ceil(r)
+        n = round(r) if abs(r - round(r)) < 1e-3 else math.ceil(r)  # float32 mesh coords
         grid.append(int(n))
     if min(grid) <= 0:
         raise StageBuildError(f"degenerate domain bounds {lo}..{hi}")

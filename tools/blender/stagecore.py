@@ -9,8 +9,8 @@ checks (rigid-body modes, connectivity, support faces, ...).
 
 Canonical JSON (``dumps``) is byte-identical to Rust's
 ``serde_json::to_string_pretty(&serde_json::Value)`` + ``"\\n"``: keys sorted (serde_json's
-default ``Map`` is a ``BTreeMap``), two-space indent, floats formatted like ``ryu``
-(``70000000000.0``, ``0.01``, ``1e-7``), non-ASCII text unescaped. Fields that are ``f64``
+default ``Map`` is a ``BTreeMap``), two-space indent, floats formatted like serde_json
+(``70000000000.0``, ``0.01``, ``0.00001``, ``1e-7``, ``1e+16``), non-ASCII text unescaped. Fields that are ``f64``
 in ``crates/stage`` are always written as floats, ``usize`` fields as integers, so a
 Rust tool can round-trip a stage through ``serde_json::Value`` without a diff.
 """
@@ -92,10 +92,11 @@ def decode_bitmask(mask: str, n: int) -> np.ndarray:
 
 
 def format_float(v: float) -> str:
-    """Format like Rust's ``ryu`` (what serde_json writes for an f64).
+    """Format an f64 exactly like serde_json (ryu digits).
 
     Python's ``repr`` and ryu both produce the shortest round-tripping digits; only the
-    layout differs (ryu: decimal notation for 1e-5 <= |v| < 1e16, otherwise ``1.5e-7``).
+    layout differs (serde_json: decimal notation for 1e-5 <= |v| < 1e16, otherwise
+    ``1.5e-7`` / ``1e+16``). Golden values checked against serde_json 1.x in the tests.
     """
     v = float(v)
     if not math.isfinite(v):
@@ -122,10 +123,10 @@ def format_float(v: float) -> str:
         out = digits[:kk] + "." + digits[kk:]
     elif -5 < kk <= 0:
         out = "0." + "0" * (-kk) + digits
-    elif length == 1:
-        out = f"{digits}e{kk - 1}"
     else:
-        out = f"{digits[0]}.{digits[1:]}e{kk - 1}"
+        e = kk - 1
+        mantissa = digits if length == 1 else f"{digits[0]}.{digits[1:]}"
+        out = f"{mantissa}e{'+' if e >= 0 else ''}{e}"  # serde_json writes 1e+16, 1e-7
     return sign + out
 
 
@@ -300,7 +301,7 @@ def fixed_dofs(stage: dict, solid: np.ndarray) -> list[tuple[Cell, int]]:
     """(node (i, j, k), component) pairs fixed by the supports, deduplicated and sorted."""
     dofs: set[tuple[Cell, int]] = set()
     for s in stage["supports"]:
-        comps = [ "xyz".index(ch) for ch in s["fix"] ]
+        comps = ["xyz".index(ch) for ch in s["fix"]]
         offsets = face_node_offsets(s["face"])
         for c in support_cells(stage, solid, s):
             for o in offsets:
