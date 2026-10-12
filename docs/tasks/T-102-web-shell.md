@@ -1,7 +1,7 @@
 ---
 id: T-102
 title: Web game shell — Three.js voxel view, carving, undo, HUD, mock solver worker
-status: review
+status: done
 phase: 0
 depends: [T-002]
 owns:
