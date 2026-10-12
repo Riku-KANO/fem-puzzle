@@ -21,6 +21,8 @@ Design doc: 判定条件 / スコア / 1ステージの流れ step 5.
 - Pure, unit-tested `judge(stage, solid, result)` → per-rule pass/fail: strength (judged max
   utilisation ≤ 1 for every load case), connectivity (`loadsConnected`), stiffness
   (`maxDisplacement`, if set), keep intact. Volume fraction and stars from `targets`.
+- A result that is not converged (mechanism / stalled CG, see solver.md) fails the design
+  with an explanatory message ("構造が安定していません"), never passes.
 - Submit button enabled only when the latest result is converged and for the current `seq`.
 - Result screen: stars, volume %, per-rule status, "最適化解との差" (volume − benchmark),
   special badge when the player beats the benchmark; toggle to overlay the benchmark solid
