@@ -109,3 +109,12 @@ Pressing Space again ends the show at once. Any carve, undo or debris change als
 - **T-306:** the e2e smoke passes after merging main (2 passed, wasm spec skipped until T-205).
 - **Browser measurement caveat:** when the Browser pane is hidden, rAF stops, so a later in-browser check drove `scene.frame()` by hand. The 60 fps figure above was measured with the pane visible.
 - **T-310 (not landed yet):** add `this.loadTest.loadJigs = () => this.workshop.loadJigs();` and `this.workshop.jigsLocked = () => this.loadTest.active;` after `new LoadTest(...)`.
+
+### 2026-10-12 — T-302: merged main with T-304 (stage select / routing)
+- App.svelte is rebuilt on T-304's version, so a stage switch or restart can't leak a listener or leave a show running.
+  - `bindSession()` hooks `loadTest.onStatus` for the new session and resets the badge.
+  - `unbindLoadTest()` drops the listener, stops the show and resets the badge. It runs in the route effect's cleanup and in `restart`, before `runner.close()` / `runner.restart()`.
+  - The scene's `dispose()` still disposes the `LoadTest`.
+- Space follows T-304's rule (game shortcuts only while a stage is open). It is also ignored while the result screen is open, and the toolbar button is disabled then too.
+- `LoadTestStatus.runs` is per game session: it resets to 0 when a stage is opened or restarted. T-305's tutorial counter should treat a drop as a re-base.
+- Verify: fast PASS. `pnpm build:wasm && pnpm --filter @stress-carve/web e2e`: 3 passed (mock ×2 and wasm).
