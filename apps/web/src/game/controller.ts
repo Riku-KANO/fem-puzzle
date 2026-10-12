@@ -54,6 +54,7 @@ export interface HudModel {
 export const MESSAGES = {
   protected: '保護領域は削れません',
   block: '障害物は削れません',
+  wasmFallback: 'WASM ソルバーを読み込めませんでした（簡易ソルバーで表示中）',
 } as const;
 
 export class GameController {
@@ -70,7 +71,7 @@ export class GameController {
     private readonly solver: SolverClient,
     private readonly view: ViewPort,
     private readonly hud: HudModel,
-    options?: SolverOptionsMsg,
+    private readonly options?: SolverOptionsMsg,
   ) {
     this.unsubscribe = solver.subscribe({
       ready: (m) => this.onReady(m),
@@ -186,6 +187,8 @@ export class GameController {
 
   private onReady(msg: ReadyMsg): void {
     this.hud.backend = msg.backend;
+    // WASM is the default; a mock reply means the worker fell back (T-205)
+    if (msg.backend === 'mock' && this.options?.backend !== 'mock') this.toast(MESSAGES.wasmFallback);
   }
 
   private onProgress(msg: ProgressMsg): void {
