@@ -1,0 +1,93 @@
+{
+  "benchmark": {
+    "maxUtilization": 0.8999,
+    "method": "simp-oc",
+    "solid": "AQAAAQAAAQAA////////AwAAAQAAAQAAAQAAAQAADwAA////////DwAAAQAAAQAAAQAAAQAADwAA////////DwAAAQAAAQAAAQAAAQAAAwAA////////AQAAAQAAAQAA",
+    "volume": 0.2994791666666667
+  },
+  "grid": [
+    24,
+    8,
+    4
+  ],
+  "hints": [
+    "荷重は壁に向かってまっすぐ押している。色のついた帯が、壁までまっすぐ続いているはず。",
+    "帯の上と下の青いところは、ほとんど力を受けていない。",
+    "力は荷重の向きに、いちばん近い道を通って支点へ流れる。"
+  ],
+  "id": "w1-04",
+  "keep": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+  "loads": [
+    {
+      "cells": [
+        [
+          23,
+          3,
+          0
+        ],
+        [
+          23,
+          4,
+          0
+        ],
+        [
+          23,
+          3,
+          1
+        ],
+        [
+          23,
+          4,
+          1
+        ],
+        [
+          23,
+          3,
+          2
+        ],
+        [
+          23,
+          4,
+          2
+        ],
+        [
+          23,
+          3,
+          3
+        ],
+        [
+          23,
+          4,
+          3
+        ]
+      ],
+      "force": [
+        -83290.0,
+        0.0,
+        0.0
+      ]
+    }
+  ],
+  "material": {
+    "E": 70000000000.0,
+    "allowable": 120000000.0,
+    "density": 2700.0,
+    "nu": 0.33
+  },
+  "solid": "////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////",
+  "supports": [
+    {
+      "face": "x-",
+      "fix": "xyz"
+    }
+  ],
+  "targets": {
+    "star1": 0.5995,
+    "star2": 0.4495,
+    "star3": 0.3495
+  },
+  "title": "まっすぐ押す",
+  "version": 1,
+  "voxelSize": 0.01,
+  "world": 1
+}

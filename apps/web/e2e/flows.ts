@@ -8,7 +8,9 @@ import {
   findCarveRun,
   openStage,
   percent1,
+  selectBrush,
   shot,
+  skipTutorial,
   trackErrors,
   volumeText,
   waitForResultAfter,
@@ -17,11 +19,13 @@ import {
 
 export const STAGE_ID = 'w1-01';
 
-export async function carveUndoLoop(page: Page, testInfo: TestInfo, backend: BackendId): Promise<void> {
+/** Returns the page-error collector (still empty here) so a caller can continue the flow. */
+export async function carveUndoLoop(page: Page, testInfo: TestInfo, backend: BackendId): Promise<string[]> {
   const errors = trackErrors(page);
 
-  // load + first solve
+  // load + first solve; w1-01 opens with the tutorial on a first visit
   const s0 = await openStage(page, STAGE_ID, backend);
+  await skipTutorial(page);
   expect(s0.backend).toBe(backend);
   expect(s0.converged).toBe(true);
   expect(s0.volume).toBe(1);
@@ -34,8 +38,7 @@ export async function carveUndoLoop(page: Page, testInfo: TestInfo, backend: Bac
   await shot(page, testInfo, '1-loaded');
 
   // brush 3×3 via the real keyboard shortcut
-  await page.keyboard.press('Digit2');
-  await expect(page.getByRole('button', { name: /3×3/ })).toHaveAttribute('aria-pressed', 'true');
+  await selectBrush(page, 3);
 
   // carve: hover (brush preview) → left click, all real mouse events on the canvas
   const { from: p } = await findCarveRun(page);
@@ -72,12 +75,14 @@ export async function carveUndoLoop(page: Page, testInfo: TestInfo, backend: Bac
   await expect(volumeText(page)).toHaveText(percent1(s0.volume));
 
   expect(errors).toEqual([]);
+  return errors;
 }
 
 /** One left drag = one history entry: a single undo restores everything it carved. */
 export async function dragIsOneUndo(page: Page, testInfo: TestInfo, backend: BackendId): Promise<void> {
   const errors = trackErrors(page);
   const s0 = await openStage(page, STAGE_ID, backend);
+  await skipTutorial(page);
 
   const { from, to } = await findCarveRun(page, 48);
   expect(to.x - from.x, 'a 48 px horizontal run over carvable voxels').toBeGreaterThanOrEqual(48);

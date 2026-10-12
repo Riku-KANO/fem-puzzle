@@ -1,7 +1,8 @@
 // Page helpers shared by the e2e specs: open a stage, read the test hook, find a carvable
 // spot on screen (with the app's own picking), wait for solver results.
 
-import { expect, type Page, type TestInfo } from '@playwright/test';
+import { expect, type Locator, type Page, type TestInfo } from '@playwright/test';
+import type { Face, Vec3 } from '@stress-carve/protocol';
 import './hook.ts';
 
 export type BackendId = 'mock' | 'wasm';
@@ -16,8 +17,20 @@ const BACKGROUND: [number, number, number] = [0x15, 0x17, 0x1c];
  * without hash routing on the same stage (T-304 rewrites it to the hash and keeps other
  * params). `?backend=` selects the solver backend (T-205).
  */
-export function stageUrl(stageId: string, backend: BackendId): string {
-  return `/?backend=${backend}&stage=${stageId}#/stage/${stageId}`;
+export function stageUrl(stageId: string, backend: BackendId, query = ''): string {
+  return `/?backend=${backend}&stage=${stageId}${query ? `&${query}` : ''}#/stage/${stageId}`;
+}
+
+/** Title screen (T-304 `#/`); the router keeps `?backend=` for every stage opened from it. */
+export function titleUrl(backend: BackendId): string {
+  return `/?backend=${backend}#/`;
+}
+
+export type ScreenId = 'title' | 'select' | 'stage';
+
+/** T-304 sets `<html data-screen>` to the current screen. */
+export async function expectScreen(page: Page, screen: ScreenId): Promise<void> {
+  await expect(page.locator('html')).toHaveAttribute('data-screen', screen);
 }
 
 export interface Snapshot {
@@ -65,14 +78,24 @@ export function trackErrors(page: Page): string[] {
 }
 
 /** Open a stage and wait until the solver has answered the initial `init`. */
-export async function openStage(page: Page, stageId: string, backend: BackendId): Promise<Snapshot> {
-  await page.goto(stageUrl(stageId, backend));
+/** `query`: extra URL parameters, e.g. `debris=physics` (T-310). */
+export async function openStage(page: Page, stageId: string, backend: BackendId, query = ''): Promise<Snapshot> {
+  await page.goto(stageUrl(stageId, backend, query));
+  return waitForStage(page, stageId);
+}
+
+/**
+ * Wait until `stageId` is the open stage (a fresh session after a route change) and its
+ * newest request has been answered.
+ */
+export async function waitForStage(page: Page, stageId: string): Promise<Snapshot> {
+  await expectScreen(page, 'stage');
   await expect(page.locator(VIEW_CANVAS)).toBeVisible();
-  await page.waitForFunction(() => {
+  await page.waitForFunction((id) => {
     const s = window.__stressCarve;
     const r = s?.controller.latestResult;
-    return !!s && !!r && r.seq === s.solver.latestSeq;
-  });
+    return !!s && s.controller.state.stage.id === id && !!r && r.seq === s.solver.latestSeq;
+  }, stageId);
   const snap = await snapshot(page);
   expect(snap.stageId).toBe(stageId);
   return snap;
@@ -212,4 +235,145 @@ export function volumeText(page: Page) {
 
 export async function shot(page: Page, testInfo: TestInfo, name: string): Promise<void> {
   await page.screenshot({ path: testInfo.outputPath(`${name}.png`) });
+}
+
+/** Wait `n` animation frames (the controller sends coalesced carve diffs once per frame). */
+export async function nextFrames(page: Page, n = 2): Promise<void> {
+  await page.evaluate(
+    (k) =>
+      new Promise<void>((resolve) => {
+        let i = 0;
+        const tick = () => (++i >= k ? resolve() : requestAnimationFrame(tick));
+        requestAnimationFrame(tick);
+      }),
+    n,
+  );
+}
+
+/** Drop keyboard focus, so Space / Enter reach the game instead of activating a button. */
+export async function blurFocus(page: Page): Promise<void> {
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+}
+
+// --- HUD locators -----------------------------------------------------------------
+
+export function toolbar(page: Page): Locator {
+  return page.getByRole('navigation', { name: 'ツールバー' });
+}
+
+export function submitButton(page: Page): Locator {
+  return toolbar(page).getByRole('button', { name: '提出', exact: true });
+}
+
+export function loadTestButton(page: Page): Locator {
+  return toolbar(page).getByRole('button', { name: '載荷テスト', exact: true });
+}
+
+/** T-301 result card. */
+export function resultCard(page: Page): Locator {
+  return page.locator('section[aria-labelledby="result-title"]');
+}
+
+/** T-305 step-by-step tutorial on w1-01 (first visit only). */
+export function tutorialCard(page: Page): Locator {
+  return page.getByRole('region', { name: 'チュートリアル' });
+}
+
+/**
+ * w1-01 opens with the T-305 tutorial in a fresh browser context. Skip it explicitly (the
+ * choice is remembered, so later opens in the same test show the stage hints instead).
+ */
+export async function skipTutorial(page: Page): Promise<void> {
+  const card = tutorialCard(page);
+  await expect(card).toBeVisible();
+  await card.getByRole('button', { name: 'スキップ' }).click();
+  await expect(card).toBeHidden();
+}
+
+/**
+ * Record every change of a button's `disabled` state from now on; the returned function
+ * reads the log (true = became disabled).
+ */
+export async function recordDisabled(button: Locator): Promise<() => Promise<boolean[]>> {
+  type Logged = HTMLButtonElement & { __disabledLog?: boolean[] };
+  await button.evaluate((el: Logged) => {
+    const log: boolean[] = [];
+    el.__disabledLog = log;
+    new MutationObserver(() => log.push(el.disabled)).observe(el, { attributes: true, attributeFilter: ['disabled'] });
+  });
+  return () => button.evaluate((el: Logged) => [...(el.__disabledLog ?? [])]);
+}
+
+/**
+ * Re-deliver the latest result with some fields changed, through the solver client's public
+ * `receive` (the worker message entry point) — e.g. `converged: false` as from a mechanism
+ * or a stalled CG, which the mock backend never produces.
+ */
+export async function injectResult(page: Page, patch: { converged: boolean }): Promise<void> {
+  await page.evaluate((p) => {
+    const s = window.__stressCarve;
+    const r = s?.controller.latestResult;
+    if (!s || !r) throw new Error('no result to re-deliver');
+    s.solver.receive({ ...r, ...p });
+  }, patch);
+}
+
+// --- deterministic carving ------------------------------------------------------------
+
+export interface BrushStroke {
+  cell: Vec3;
+  /** face of `cell` the brush is applied to (the brush square lies in its plane) */
+  face: Face;
+}
+
+/**
+ * Carve with synthetic brush strokes: the same controller calls the pointer input makes for
+ * a click (`strokeStart(hit)` → `strokeEnd()`), with the hit given as cell + face instead of
+ * picked from the screen. Brush size, surface rule, protected cells, history (one entry per
+ * stroke), diff batching and the solver round trip are the real ones; only screen → cell
+ * picking is skipped (the mouse flows cover that). Returns the solid count afterwards.
+ */
+export async function brushStrokes(page: Page, strokes: readonly BrushStroke[]): Promise<number> {
+  return page.evaluate((list) => {
+    const s = window.__stressCarve;
+    if (!s) throw new Error('window.__stressCarve missing');
+    const [nx, ny] = s.controller.state.stage.grid;
+    for (const { cell, face } of list) {
+      const element = cell[0] + nx * (cell[1] + ny * cell[2]);
+      const point: Vec3 = [cell[0] + 0.5, cell[1] + 0.5, cell[2] + 0.5];
+      s.controller.strokeStart({ element, cell, face, t: 0, point });
+      s.controller.strokeEnd();
+    }
+    return s.controller.state.solidCount;
+  }, strokes);
+}
+
+/**
+ * A known carve on w1-01 (24×8×4 cantilever, clamped at x = 0, loaded at the tip, 768 cells):
+ * the 5×5 brush on the front face (z+) centred at y = 3, one stroke per column centre and
+ * layer, front to back — each centre cuts a through-slot x c−2..c+2 × y 1..5.
+ * Verdicts with the mock backend (deterministic; worked out with game/judge on mockPhysics):
+ * - centres 3, 8, 13 → slot x 1..15: 468 cells, 60.9 % → 合格(星なし) (★1 needs ≤ 59.95 %)
+ * - then centre 18 → slot x 1..20: 368 cells, 47.9 % → クリア ★1 (★2 needs ≤ 44.95 %),
+ *   max utilisation 83 %; the 1-voxel bottom chord under the slot is a thin wall (T-308).
+ */
+export const W1_01_SLOT = {
+  noStars: { centres: [3, 8, 13], solidCount: 468, volume: '60.9%', benchDelta: '最適化解との差 +31.0 pt' },
+  oneStar: { centres: [18], solidCount: 368, volume: '47.9%', benchDelta: '最適化解との差 +18.0 pt' },
+  benchmark: '最適化解 29.9%',
+} as const;
+
+export function slotStrokes(centres: readonly number[], y = 3, depth = 4): BrushStroke[] {
+  const strokes: BrushStroke[] = [];
+  for (const x of centres) for (let z = depth - 1; z >= 0; z--) strokes.push({ cell: [x, y, z], face: 'z+' });
+  return strokes;
+}
+
+/** Press 1/2/3 and check the toolbar shows that brush. */
+export async function selectBrush(page: Page, size: 1 | 3 | 5): Promise<void> {
+  await page.keyboard.press(`Digit${size === 1 ? 1 : size === 3 ? 2 : 3}`);
+  await expect(toolbar(page).getByRole('button', { name: new RegExp(`${size}×${size}`) })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
 }

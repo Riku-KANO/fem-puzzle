@@ -30,6 +30,7 @@
   import StagePanel from './ui/StagePanel.svelte';
   import Toast from './ui/Toast.svelte';
   import Toolbar from './ui/Toolbar.svelte';
+  import StageGuide from './ui/tutorial/StageGuide.svelte';
   import ResultScreen from './ui/result/ResultScreen.svelte';
   import { ResultSession } from './ui/result/resultSession.svelte.ts';
   import GameMenu from './ui/select/GameMenu.svelte';
@@ -184,6 +185,14 @@
       <GameMenu resume={opened} onSelect={actions.select} onRestart={actions.restart} />
       <StagePanel title={stage.title} world={stage.world} targets={stage.targets} {hud} />
       <ThinWallBadge hud={thinWalls} />
+      <StageGuide
+        {stage}
+        {hud}
+        session={() => game}
+        loadTestRuns={loadTest.runs}
+        loadTestActive={loadTest.state !== 'idle'}
+        resultOpen={result.submission !== null}
+      />
     </div>
     {#if result.submission}
       <div class="result-slot">

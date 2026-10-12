@@ -1,0 +1,94 @@
+{
+  "benchmark": {
+    "maxUtilization": 0.8996,
+    "method": "simp-oc",
+    "solid": "/wMDAwAHAQAPAQAbAQAAAQAAAR8A/wfA//8D//8HeTwPMTAbMfAxOfBwf35g/8P///8D//8HeRwPMTAbMfAxOfBwfz5g/wPA/wMDAQADAQAPAQADAQAAARAAAR8A/wfA",
+    "volume": 0.44971264367816094
+  },
+  "block": "AAAAAAAAAAAAwA8AwA8AwA8AAAAAAAAAAAAAAAAAAAAAwA8AwA8AwA8AAAAAAAAAAAAAAAAAAAAAwA8AwA8AwA8AAAAAAAAAAAAAAAAAAAAAwA8AwA8AwA8AAAAAAAAA",
+  "grid": [
+    24,
+    8,
+    4
+  ],
+  "hints": [
+    "荷重はななめ下向き。どこへ流れていくか、色で確かめよう。",
+    "下の小さな柱は保護領域。うまく使えば支えになる。",
+    "窓をよけながら、荷重から壁まで道をつなごう。"
+  ],
+  "id": "w1-10",
+  "keep": "AAADAAADAAADAAADAAAAAAAAAAAAAAAAAAADAAADAAADAAADAAAAAAAAAAAAAAAAAAADAAADAAADAAADAAAAAAAAAAAAAAAAAAADAAADAAADAAADAAAAAAAAAAAAAAAA",
+  "loads": [
+    {
+      "cells": [
+        [
+          22,
+          7,
+          0
+        ],
+        [
+          23,
+          7,
+          0
+        ],
+        [
+          22,
+          7,
+          1
+        ],
+        [
+          23,
+          7,
+          1
+        ],
+        [
+          22,
+          7,
+          2
+        ],
+        [
+          23,
+          7,
+          2
+        ],
+        [
+          22,
+          7,
+          3
+        ],
+        [
+          23,
+          7,
+          3
+        ]
+      ],
+      "force": [
+        -8338.0,
+        -16670.0,
+        0.0
+      ]
+    }
+  ],
+  "material": {
+    "E": 70000000000.0,
+    "allowable": 120000000.0,
+    "density": 2700.0,
+    "nu": 0.33
+  },
+  "solid": "////////////P/D/P/D/P/D/////////////////////P/D/P/D/P/D/////////////////////P/D/P/D/P/D/////////////////////P/D/P/D/P/D/////////",
+  "supports": [
+    {
+      "face": "x-",
+      "fix": "xyz"
+    }
+  ],
+  "targets": {
+    "star1": 0.7497,
+    "star2": 0.5997,
+    "star3": 0.4997
+  },
+  "title": "工房の卒業試験",
+  "version": 1,
+  "voxelSize": 0.01,
+  "world": 1
+}

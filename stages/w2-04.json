@@ -1,0 +1,300 @@
+{
+  "benchmark": {
+    "maxUtilization": 0.8999,
+    "method": "simp-oc",
+    "solid": "/////3/8B3xggAcOQMAMB8BgmAOAMPgBgPn/AAD/PwD/PwDgPwAAAHAAAABgAAAAwAAAAMAAAACAAQAAAB8AAA8AAMAfAAAAMAAAAGAAAADAAAAAwAAAAIABAAAADwAADwAAwB8AAAAwAAAAYAAAAEAAAADAAAAAgAEAAAAPAAAPAADAHwAAADAAAABgAAAAQAAAAMAAAACAAQAAAA8AAA8AAMAfAAAAMAAAAGAAAADAAAAAwAAAAIABAAAADwAA/z8A4D8AAABwAAAAYAAAAMAAAADAAAAAgAEAAAAfAAD/////f/wHfGCABw5AwAwHwGCYA4Aw+AGA+f8AAP8/AA==",
+    "volume": 0.2001953125
+  },
+  "grid": [
+    32,
+    8,
+    8
+  ],
+  "hints": [
+    "荷重は左寄り。左右対称の答えにはならない。",
+    "荷重に近い支点のほうが多くの力を受け持つ。左右の色の濃さを比べよう。"
+  ],
+  "id": "w2-04",
+  "keep": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+  "loads": [
+    {
+      "cells": [
+        [
+          8,
+          7,
+          0
+        ],
+        [
+          9,
+          7,
+          0
+        ],
+        [
+          8,
+          7,
+          1
+        ],
+        [
+          9,
+          7,
+          1
+        ],
+        [
+          8,
+          7,
+          2
+        ],
+        [
+          9,
+          7,
+          2
+        ],
+        [
+          8,
+          7,
+          3
+        ],
+        [
+          9,
+          7,
+          3
+        ],
+        [
+          8,
+          7,
+          4
+        ],
+        [
+          9,
+          7,
+          4
+        ],
+        [
+          8,
+          7,
+          5
+        ],
+        [
+          9,
+          7,
+          5
+        ],
+        [
+          8,
+          7,
+          6
+        ],
+        [
+          9,
+          7,
+          6
+        ],
+        [
+          8,
+          7,
+          7
+        ],
+        [
+          9,
+          7,
+          7
+        ]
+      ],
+      "force": [
+        0.0,
+        -69030.0,
+        0.0
+      ]
+    }
+  ],
+  "material": {
+    "E": 70000000000.0,
+    "allowable": 120000000.0,
+    "density": 2700.0,
+    "nu": 0.33
+  },
+  "solid": "/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////w==",
+  "supports": [
+    {
+      "cells": [
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ],
+        [
+          1,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          2
+        ],
+        [
+          1,
+          0,
+          2
+        ],
+        [
+          0,
+          0,
+          3
+        ],
+        [
+          1,
+          0,
+          3
+        ],
+        [
+          0,
+          0,
+          4
+        ],
+        [
+          1,
+          0,
+          4
+        ],
+        [
+          0,
+          0,
+          5
+        ],
+        [
+          1,
+          0,
+          5
+        ],
+        [
+          0,
+          0,
+          6
+        ],
+        [
+          1,
+          0,
+          6
+        ],
+        [
+          0,
+          0,
+          7
+        ],
+        [
+          1,
+          0,
+          7
+        ]
+      ],
+      "face": "y-",
+      "fix": "xyz"
+    },
+    {
+      "cells": [
+        [
+          30,
+          0,
+          0
+        ],
+        [
+          31,
+          0,
+          0
+        ],
+        [
+          30,
+          0,
+          1
+        ],
+        [
+          31,
+          0,
+          1
+        ],
+        [
+          30,
+          0,
+          2
+        ],
+        [
+          31,
+          0,
+          2
+        ],
+        [
+          30,
+          0,
+          3
+        ],
+        [
+          31,
+          0,
+          3
+        ],
+        [
+          30,
+          0,
+          4
+        ],
+        [
+          31,
+          0,
+          4
+        ],
+        [
+          30,
+          0,
+          5
+        ],
+        [
+          31,
+          0,
+          5
+        ],
+        [
+          30,
+          0,
+          6
+        ],
+        [
+          31,
+          0,
+          6
+        ],
+        [
+          30,
+          0,
+          7
+        ],
+        [
+          31,
+          0,
+          7
+        ]
+      ],
+      "face": "y-",
+      "fix": "y"
+    }
+  ],
+  "targets": {
+    "star1": 0.5002,
+    "star2": 0.3502,
+    "star3": 0.2502
+  },
+  "title": "片寄った荷重",
+  "version": 1,
+  "voxelSize": 0.01,
+  "world": 2
+}
