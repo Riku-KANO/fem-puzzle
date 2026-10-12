@@ -34,9 +34,12 @@ pub struct Problem {
     pub material: Material,
     /// Per element: initially solid (the design domain).
     pub domain: Vec<bool>,
-    /// Per element: protected (`keep` plus implicit support/load cells).
+    /// Per element: protected (`keep` plus implicit supported and load cells,
+    /// `Stage::effective_keep`).
     pub keep: Vec<bool>,
-    /// Per element: domain element with at least one node fixed by a support.
+    /// Per element: supported cell (`Stage::supported_cells`: listed support cells, or
+    /// every initially solid cell on a face-only support's face). Connectivity to supports
+    /// is measured from exactly these cells.
     pub supported: Vec<bool>,
     /// Per DOF: held at `u = 0` by a support.
     pub fixed: Vec<bool>,
@@ -139,15 +142,12 @@ impl Problem {
                 }
             }
         }
-        let supported = (0..n)
-            .map(|e| {
-                domain[e]
-                    && grid
-                        .element_nodes(e)
-                        .iter()
-                        .any(|&nd| fixed[3 * nd..3 * nd + 3].iter().any(|&f| f))
-            })
-            .collect();
+        // Supported cells per stage-format.md: an element that merely shares a fixed node
+        // with a supported cell is not supported.
+        let mut supported = stage.supported_cells()?;
+        for (s, &d) in supported.iter_mut().zip(&domain) {
+            *s &= d;
+        }
 
         // Loads.
         let cases = stage
@@ -305,6 +305,10 @@ mod tests {
         for e in 0..g.elements() {
             let [x, ..] = g.element_coords(e);
             assert_eq!(p.supported[e], x == 0 && p.domain[e], "element {e}");
+            // Face-support root cells are protected.
+            if x == 0 {
+                assert_eq!(p.keep[e], p.domain[e], "element {e}");
+            }
         }
     }
 
@@ -333,11 +337,9 @@ mod tests {
         assert_eq!(p.fixed.iter().filter(|&&f| f).count(), 4);
         // Support cell is implicitly keep.
         assert!(p.keep[g.element_index(1, 0, 0)]);
-        // Elements sharing a fixed node count as supported.
-        assert!(p.supported[g.element_index(0, 0, 0)]);
-        assert!(p.supported[g.element_index(2, 0, 1)]);
-        assert!(!p.supported[g.element_index(3, 0, 0)]);
-        assert!(!p.supported[g.element_index(1, 1, 0)]);
+        // Only the listed cell is supported, not neighbours sharing a fixed node.
+        let supported: Vec<usize> = (0..g.elements()).filter(|&e| p.supported[e]).collect();
+        assert_eq!(supported, vec![g.element_index(1, 0, 0)]);
     }
 
     #[test]

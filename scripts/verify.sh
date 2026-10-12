@@ -3,10 +3,10 @@
 # until the relevant profile is green.
 #
 #   scripts/verify.sh            # = full
-#   scripts/verify.sh fast       # tasks + rust fmt/clippy/test + ts typecheck/test (~1 min)
+#   scripts/verify.sh fast       # tasks + rust fmt/clippy/test + ts typecheck/test + stage drift
 #   scripts/verify.sh rust       # rust only
 #   scripts/verify.sh web        # ts typecheck/test + web build
-#   scripts/verify.sh full       # fast + wasm build + web build + e2e + perf gate (when present)
+#   scripts/verify.sh full       # fast + Blender stage tests + wasm + web build + e2e + perf gate
 #
 # Logs: .artifacts/verify/<step>.log. Output is kept short on purpose (agent context).
 set -uo pipefail
@@ -39,6 +39,8 @@ skip() {
   RESULTS+=("SKIP  $(printf '%-14s' "$1") $2")
 }
 
+BLENDER_BIN="${BLENDER:-/Applications/Blender.app/Contents/MacOS/Blender}"
+has_blender() { [ -x "$BLENDER_BIN" ] || command -v blender >/dev/null 2>&1; }
 has_e2e() { [ -f apps/web/playwright.config.ts ]; }
 has_bench_gate() { [ -f scripts/bench-gate.mjs ]; }
 
@@ -53,7 +55,17 @@ run_ts() {
   step ts-typecheck pnpm -r --if-present typecheck
   step ts-test pnpm -r --if-present test
 }
-run_wasm() { step wasm-build pnpm build:wasm; }
+# Stage drift (committed stages/*.json == fresh Blender export). Local gate: CI has no Blender.
+run_stages() {
+  if has_blender; then step stages-check bash scripts/build-stages.sh --check; else skip stages-check "(no Blender)"; fi
+}
+run_stage_tests() {
+  if has_blender; then step stages-test bash scripts/build-stages.sh --test; else skip stages-test "(no Blender)"; fi
+}
+run_wasm() {
+  step wasm-build pnpm build:wasm
+  step wasm-smoke node crates/fem-wasm/tests/node-smoke.mjs
+}
 run_web_build() { step web-build pnpm --filter @stress-carve/web build; }
 run_e2e() {
   if has_e2e; then step e2e pnpm --filter @stress-carve/web e2e; else skip e2e "(no playwright config yet)"; fi
@@ -63,10 +75,10 @@ run_bench() {
 }
 
 case "$PROFILE" in
-  fast) run_tasks; run_rust; run_ts ;;
+  fast) run_tasks; run_rust; run_ts; run_stages ;;
   rust) run_rust ;;
   web) run_ts; run_web_build ;;
-  full) run_tasks; run_rust; run_ts; run_wasm; run_web_build; run_e2e; run_bench ;;
+  full) run_tasks; run_rust; run_ts; run_stages; run_stage_tests; run_wasm; run_web_build; run_e2e; run_bench ;;
   *) echo "unknown profile '$PROFILE' (fast|rust|web|full)"; exit 2 ;;
 esac
 
