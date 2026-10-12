@@ -215,13 +215,22 @@ fn hierarchy_shapes_for_stage_grids() {
     }
 }
 
+/// `P_lᵀ A_l P_l` (dense, with the masked prolongation) equals the stored `A_{l+1}` on
+/// every level of 2- and 3-level hierarchies, including odd axes and an empty coarse cell.
 #[test]
 fn galerkin_coarse_operator_equals_dense_triple_product() {
-    for g in [ugrid(4, 2, 2), ugrid(4, 3, 2)] {
+    for (dims, levels) in [
+        ([4, 2, 2], 2),
+        ([4, 3, 2], 2),
+        ([8, 3, 4], 3),
+        ([5, 3, 3], 3),
+    ] {
+        let g = ugrid(dims[0], dims[1], dims[2]);
         let mut op = small_carved_operator(g);
-        if g.ny == 3 {
-            // Empty the coarse element (1, 2, 0) (y is not coarsened): the coarse nodes
-            // (2, 3, k) then only interpolate to masked fine nodes and must be masked.
+        if dims == [4, 3, 2] {
+            // y has 3 cells → coarse cells {0, 1} and {2}. Emptying the coarse element
+            // (1, 1, 0) leaves the coarse nodes (2, 2, k) (= fine nodes (4, 3, 2k)) with only
+            // masked fine nodes to interpolate to: they must be masked.
             let coef: Vec<f64> = (0..g.elements())
                 .map(|e| {
                     let [x, y, _] = g.element_coords(e);
@@ -232,68 +241,72 @@ fn galerkin_coarse_operator_equals_dense_triple_product() {
         }
         let opts = MgOptions {
             coarse_max_dofs: 1,
-            max_levels: 2,
+            max_levels: levels,
             ..MgOptions::default()
         };
         let mg = mg_with(&op, opts);
-        assert_eq!(mg.levels(), 2);
-        let (fine, coarse) = (&mg.levels[0], &mg.levels[1]);
-        let tr = &mg.transfers[0];
-        let (nf, nc) = (fine.n_dofs(), coarse.n_dofs());
+        assert_eq!(mg.levels(), levels, "{dims:?}: {:?}", mg.level_grids());
         // Level 0 operator is exactly the solver's operator.
-        let a = dense(nf, nf, |x, y| op.apply(x, y));
-        let a0 = dense(nf, nf, |x, y| fine.apply(x, y));
-        for i in 0..nf {
-            for j in 0..nf {
+        let nf0 = mg.levels[0].n_dofs();
+        let a = dense(nf0, nf0, |x, y| op.apply(x, y));
+        let a0 = dense(nf0, nf0, |x, y| mg.levels[0].apply(x, y));
+        for i in 0..nf0 {
+            for j in 0..nf0 {
                 assert!((a[i][j] - a0[i][j]).abs() < 1e-12);
             }
         }
-        // P' = M P column by column.
-        let p = dense(nc, nf, |x, y| {
-            y.fill(0.0);
-            tr.prolong_add(x, &fine.free, y);
-        });
-        let ac = dense(nc, nc, |x, y| coarse.apply(x, y));
-        let scale = a.iter().flatten().fold(0.0f64, |m, v| m.max(v.abs()));
-        let mut n_masked = 0;
-        for i in 0..nc {
-            for j in 0..nc {
-                let mut s = 0.0;
-                for k in 0..nf {
-                    if p[k][i] == 0.0 {
-                        continue;
+        for l in 0..levels - 1 {
+            let (fine, coarse) = (&mg.levels[l], &mg.levels[l + 1]);
+            let tr = &mg.transfers[l];
+            let (nf, nc) = (fine.n_dofs(), coarse.n_dofs());
+            let a = dense(nf, nf, |x, y| fine.apply(x, y));
+            // P' = M P column by column.
+            let p = dense(nc, nf, |x, y| {
+                y.fill(0.0);
+                tr.prolong_add(x, &fine.free, y);
+            });
+            let ac = dense(nc, nc, |x, y| coarse.apply(x, y));
+            let scale = a.iter().flatten().fold(0.0f64, |m, v| m.max(v.abs()));
+            let mut n_masked = 0;
+            for i in 0..nc {
+                for j in 0..nc {
+                    let mut s = 0.0;
+                    for k in 0..nf {
+                        if p[k][i] == 0.0 {
+                            continue;
+                        }
+                        for m in 0..nf {
+                            s += p[k][i] * a[k][m] * p[m][j];
+                        }
                     }
-                    for l in 0..nf {
-                        s += p[k][i] * a[k][l] * p[l][j];
-                    }
-                }
-                let expect = if coarse.free[i] {
-                    s
-                } else {
-                    // Masked coarse DOF: zero row in PᵀAP, identity in A_c.
+                    let expect = if coarse.free[i] {
+                        s
+                    } else {
+                        // Masked coarse DOF: zero row in PᵀAP, identity in A_c.
+                        assert!(
+                            s.abs() < 1e-12 * scale,
+                            "level {l}: masked DOF {i} has PᵀAP row entry {s}"
+                        );
+                        if i == j { 1.0 } else { 0.0 }
+                    };
                     assert!(
-                        s.abs() < 1e-12 * scale,
-                        "masked DOF {i} has PᵀAP row entry {s}"
+                        (ac[i][j] - expect).abs() < 1e-12 * scale,
+                        "{dims:?} level {l} ({i},{j}): {} vs {expect}",
+                        ac[i][j]
                     );
-                    if i == j { 1.0 } else { 0.0 }
-                };
-                assert!(
-                    (ac[i][j] - expect).abs() < 1e-12 * scale,
-                    "({i},{j}): {} vs {expect}",
-                    ac[i][j]
-                );
+                }
+                n_masked += usize::from(!coarse.free[i]);
             }
-            n_masked += usize::from(!coarse.free[i]);
-        }
-        if g.ny == 3 {
-            assert_eq!(n_masked, 6, "coarse nodes (2, 3, 0..=1)");
+            if dims == [4, 3, 2] {
+                assert_eq!(n_masked, 6, "coarse nodes (2, 2, 0..=1)");
+            }
         }
     }
 }
 
 #[test]
 fn vcycle_is_symmetric_positive_definite() {
-    // Three levels on a tiny carved grid, with semi-coarsening on y.
+    // Three levels on a tiny carved grid; y has 3 cells (one single-width coarse cell).
     let g = ugrid(8, 3, 4);
     let op = small_carved_operator(g);
     for sweeps in [1, 2] {
@@ -304,7 +317,7 @@ fn vcycle_is_symmetric_positive_definite() {
             ..MgOptions::default()
         };
         let mut mg = mg_with(&op, opts);
-        assert_eq!(mg.level_grids(), vec![[8, 3, 4], [4, 3, 2], [2, 3, 1]]);
+        assert_eq!(mg.level_grids(), vec![[8, 3, 4], [4, 2, 2], [2, 1, 1]]);
         let n = g.dofs();
         let b = dense(n, n, |x, y| mg.apply(x, y));
         let scale = b.iter().flatten().fold(0.0f64, |m, v| m.max(v.abs()));
@@ -477,4 +490,175 @@ fn preconditioner_is_positive_on_carved_and_contrast_designs() {
             .fold(0.0f64, |m, (a, b)| m.max((a - b).abs()));
         assert!(err < 1e-5 * xmax, "design {design}: {err} vs {xmax}");
     }
+}
+
+#[test]
+fn unsafe_options_are_corrected_and_vcycle_stays_symmetric() {
+    let mg = Multigrid::new(MgOptions {
+        sweeps: 0,
+        omega: -1.0,
+        omega_cap: 2.5,
+        ..MgOptions::default()
+    });
+    assert_eq!(mg.options().sweeps, 1);
+    assert_eq!(mg.options().omega, MgOptions::default().omega);
+    assert_eq!(mg.options().omega_cap, MAX_OMEGA_CAP);
+    let mg = Multigrid::new(MgOptions {
+        omega_cap: f64::NAN,
+        omega: f64::INFINITY,
+        ..MgOptions::default()
+    });
+    assert_eq!(mg.options().omega_cap, MgOptions::default().omega_cap);
+    assert_eq!(mg.options().omega, MgOptions::default().omega);
+    // A request for 0 sweeps still yields a symmetric V-cycle.
+    let g = ugrid(4, 2, 2);
+    let op = small_carved_operator(g);
+    let mut mg = Multigrid::new(MgOptions {
+        sweeps: 0,
+        coarse_max_dofs: 1,
+        ..MgOptions::default()
+    });
+    mg.rebuild(&op.view());
+    assert!(mg.levels() >= 2);
+    let n = g.dofs();
+    let b = dense(n, n, |x, y| mg.apply(x, y));
+    let scale = b.iter().flatten().fold(0.0f64, |m, v| m.max(v.abs()));
+    for (i, row) in b.iter().enumerate() {
+        for (j, &bij) in row.iter().enumerate() {
+            assert!((bij - b[j][i]).abs() < 1e-12 * scale, "({i},{j})");
+        }
+    }
+}
+
+/// True relative residual `‖f − A x‖ / ‖f‖`.
+fn true_residual(op: &Operator, f: &[f64], x: &[f64]) -> f64 {
+    let mut ax = vec![0.0; f.len()];
+    op.apply(x, &mut ax);
+    let r: f64 = ax
+        .iter()
+        .zip(f)
+        .map(|(a, b)| (a - b) * (a - b))
+        .sum::<f64>()
+        .sqrt();
+    r / dot(f, f).sqrt()
+}
+
+/// End-to-end null-pivot path: a one-voxel plate clamped on x = 0 makes the Galerkin
+/// coarsest operator singular (the plate's free fine nodes on x = 1 interpolate from two
+/// coarse node layers with equal weights). Null pivots must be detected and MGCG must still
+/// reach the exact solution.
+#[test]
+fn null_pivots_on_clamped_plate_give_correct_solution() {
+    for (dims, coarse_max_dofs) in [([16, 8, 8], 2000), ([16, 8, 8], 100), ([8, 4, 4], 100)] {
+        let g = ugrid(dims[0], dims[1], dims[2]);
+        let coef: Vec<f64> = (0..g.elements())
+            .map(|e| {
+                if g.element_coords(e)[0] == 0 {
+                    1.0
+                } else {
+                    0.0
+                }
+            })
+            .collect();
+        let op = clamped_operator(g, &coef);
+        let mut mg = mg_with(
+            &op,
+            MgOptions {
+                coarse_max_dofs,
+                ..MgOptions::default()
+            },
+        );
+        let nulls = mg.stats().last_null_pivots;
+        assert!(mg.levels() >= 2);
+        assert!(
+            nulls > 0,
+            "{dims:?}/{coarse_max_dofs}: expected null pivots"
+        );
+        let mut seed = 100;
+        let f: Vec<f64> = (0..g.dofs())
+            .map(|d| {
+                if op.free()[d] {
+                    rand01(&mut seed) - 0.5
+                } else {
+                    0.0
+                }
+            })
+            .collect();
+        let (x, iters, min_cos) = pcg(&op, &mut mg, &f, 1e-11, 500);
+        let res = true_residual(&op, &f, &x);
+        assert!(min_cos > 0.0);
+        assert!(
+            res < 1e-10,
+            "{dims:?}: true residual {res} after {iters} it ({nulls} nulls)"
+        );
+    }
+}
+
+/// Incremental rebuilds stay bit-identical to fresh builds for carve, add-back,
+/// coefficient-only (density) changes and a floating component being removed / re-attached.
+#[test]
+fn incremental_rebuild_add_back_density_and_floating() {
+    let g = ugrid(16, 8, 8);
+    let fixed = clamped(&g);
+    let mut coef = vec![1.0; g.elements()];
+    let mut op = clamped_operator(g, &coef);
+    let mut mg = mg_with(&op, MgOptions::default());
+    let total: usize = mg.levels[1..].iter().map(|l| l.grid.elements()).sum();
+    let mut step = |coef: &[f64], tag: &str, local: bool| {
+        op.update(&fixed, |e| coef[e]);
+        mg.rebuild(&op.view());
+        assert_eq!(mg.stats().setups, 1, "{tag}: no re-setup");
+        if local {
+            assert!(
+                mg.stats().last_rebuilt_elems < total / 2,
+                "{tag}: not incremental"
+            );
+        }
+        let mut fresh = mg_with(&op, MgOptions::default());
+        for (li, (a, b)) in mg.levels.iter().zip(&fresh.levels).enumerate() {
+            assert_eq!(a.free, b.free, "{tag}: level {li} mask");
+            assert_eq!(a.inv_diag, b.inv_diag, "{tag}: level {li} smoother");
+        }
+        let mut seed = 7;
+        let r: Vec<f64> = (0..g.dofs())
+            .map(|d| {
+                if op.free()[d] {
+                    rand01(&mut seed) - 0.5
+                } else {
+                    0.0
+                }
+            })
+            .collect();
+        let (mut z1, mut z2) = (vec![0.0; r.len()], vec![0.0; r.len()]);
+        mg.apply(&r, &mut z1);
+        fresh.apply(&r, &mut z2);
+        assert_eq!(z1, z2, "{tag}");
+    };
+    let patch: Vec<usize> = (5..8)
+        .flat_map(|x| (2..5).map(move |z| g.element_index(x, 7, z)))
+        .collect();
+    for &e in &patch {
+        coef[e] = 0.0;
+    }
+    step(&coef, "carve", true);
+    for &e in &patch {
+        coef[e] = 1.0;
+    }
+    step(&coef, "add back", true);
+    for e in 0..40 {
+        coef[e * 7 % g.elements()] = 0.3;
+    }
+    step(&coef, "coef only", false);
+    // The solver gives floating parts coef 0: cut everything beyond x = 10, then re-attach.
+    let beyond: Vec<usize> = (0..g.elements())
+        .filter(|&e| g.element_coords(e)[0] >= 10)
+        .collect();
+    for &e in &beyond {
+        coef[e] = 0.0;
+    }
+    step(&coef, "floating removed", false);
+    for &e in &beyond {
+        coef[e] = 1.0;
+    }
+    step(&coef, "re-attached", false);
 }

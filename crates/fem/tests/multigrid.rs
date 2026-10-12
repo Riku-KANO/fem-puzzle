@@ -212,3 +212,147 @@ fn simp_densities_with_high_contrast() {
         assert!(rel_diff(&um, &uj) < 1e-5, "design {design}");
     }
 }
+
+/// Odd element counts (sandbox / daily sizes) are coarsened too (last coarse cell one fine
+/// cell wide), so they get a full hierarchy and converge like the nearest even grid.
+#[test]
+fn odd_grids_get_full_hierarchies() {
+    for (odd, even) in [
+        ([31, 11, 11], [32, 12, 12]),
+        ([33, 9, 7], [32, 8, 8]),
+        ([25, 9, 5], [24, 8, 4]),
+    ] {
+        let run = |dims: [usize; 3]| {
+            let p = Problem::from_stage(&common::tip_edge_cantilever(dims, 1000.0)).unwrap();
+            let mut s = Solver::new(p, opts(Preconditioner::Multigrid, 1e-6));
+            let (it, _) = solve(&mut s);
+            (it, s.levels())
+        };
+        let (it_odd, lv_odd) = run(odd);
+        let (it_even, lv_even) = run(even);
+        eprintln!("{odd:?}: {lv_odd} levels {it_odd} it; {even:?}: {lv_even} levels {it_even} it");
+        assert_eq!(lv_odd, lv_even, "{odd:?}");
+        assert!(
+            it_odd <= it_even + it_even / 2 + 2,
+            "{odd:?}: {it_odd} vs {it_even}"
+        );
+    }
+}
+
+/// Timing table for odd grids vs the nearest even grid (run with
+/// `cargo test -p fem --release --test multigrid -- --ignored --nocapture`): multigrid cold
+/// and warm 3×3 carve, Jacobi warm carve (what an SPD-smoother fallback would cost), and the
+/// per-carve refactorisation of a single-level direct solve (the pre-T-312 behaviour for
+/// all-odd grids).
+#[test]
+#[ignore]
+fn odd_grid_timings() {
+    use fem::{MgOptions, Multigrid, Operator, Precond};
+    use std::time::Instant;
+    let ms = |t: Instant| t.elapsed().as_secs_f64() * 1e3;
+    eprintln!(
+        "{:<10} {:>6} {:>3} | {:>13} | {:>17} | {:>17} | {:>12}",
+        "grid",
+        "dofs",
+        "lv",
+        "mg cold ms(it)",
+        "mg warm med ms(it)",
+        "jac warm med ms(it)",
+        "1-lvl fact ms"
+    );
+    for dims in [
+        [31, 11, 11],
+        [32, 12, 12],
+        [33, 9, 7],
+        [32, 8, 8],
+        [25, 9, 5],
+        [24, 8, 4],
+    ] {
+        let p = Problem::from_stage(&common::tip_edge_cantilever(dims, 1000.0)).unwrap();
+        let g = p.grid;
+        let (cx, cz) = (g.nx / 2, g.nz / 2);
+        let warm = |pc| {
+            let o = opts(pc, 1e-4);
+            let t = Instant::now();
+            let mut s = Solver::new(p.clone(), o);
+            let cold = s.solve();
+            let cold_ms = ms(t);
+            let mut samples = Vec::new();
+            for (dx, dz) in [(0, 0), (-1, 1), (1, -1), (2, 1), (-2, -1)] {
+                let x0 = (cx as i64 + dx) as usize;
+                let z0 = (cz as i64 + dz) as usize;
+                let patch: Vec<usize> = (x0 - 1..=x0 + 1)
+                    .flat_map(|x| (z0 - 1..=z0 + 1).map(move |z| g.element_index(x, g.ny - 1, z)))
+                    .collect();
+                let off: Vec<(usize, bool)> = patch.iter().map(|&e| (e, false)).collect();
+                let on: Vec<(usize, bool)> = patch.iter().map(|&e| (e, true)).collect();
+                s.set_solid(&off);
+                let t = Instant::now();
+                let st = s.solve();
+                samples.push((ms(t), st.iterations));
+                s.set_solid(&on);
+                s.solve();
+            }
+            samples.sort_by(|a, b| a.0.total_cmp(&b.0));
+            (
+                cold_ms,
+                cold.iterations,
+                samples[samples.len() / 2],
+                s.levels(),
+            )
+        };
+        let (mc, mci, (mw, mwi), lv) = warm(Preconditioner::Multigrid);
+        let (_, _, (jw, jwi), _) = warm(Preconditioner::Jacobi);
+        // Single-level direct solve: the factorisation is redone on every carve.
+        let mut op = Operator::new(g, p.material.nu);
+        op.update(&p.fixed, |_| p.material.e * g.h);
+        let mut direct = Multigrid::new(MgOptions {
+            max_levels: 1,
+            ..MgOptions::default()
+        });
+        let t = Instant::now();
+        direct.rebuild(&op.view());
+        let fact = ms(t);
+        eprintln!(
+            "{:<10} {:>6} {:>3} | {:>7.1} ({:>3}) | {:>10.1} ({:>3}) | {:>10.1} ({:>3}) | {:>12.1}",
+            format!("{}x{}x{}", dims[0], dims[1], dims[2]),
+            g.dofs(),
+            lv,
+            mc,
+            mci,
+            mw,
+            mwi,
+            jw,
+            jwi,
+            fact
+        );
+    }
+    // Full (re)build cost, e.g. every `set_density` in optimiser mode: l1 damping (default,
+    // no element spectral bounds) vs element-bound damping.
+    for dims in [[40, 12, 12], [60, 20, 20]] {
+        let p = Problem::from_stage(&common::tip_edge_cantilever(dims, 1000.0)).unwrap();
+        let mut op = Operator::new(p.grid, p.material.nu);
+        op.update(&p.fixed, |_| p.material.e * p.grid.h);
+        let build = |l1_damping| {
+            let mut best = f64::INFINITY;
+            for _ in 0..3 {
+                let mut mg = Multigrid::new(MgOptions {
+                    l1_damping,
+                    ..MgOptions::default()
+                });
+                let t = Instant::now();
+                mg.rebuild(&op.view());
+                best = best.min(ms(t));
+            }
+            best
+        };
+        eprintln!(
+            "{}x{}x{} full build: l1 damping {:.1} ms, element-bound damping {:.1} ms",
+            dims[0],
+            dims[1],
+            dims[2],
+            build(true),
+            build(false)
+        );
+    }
+}

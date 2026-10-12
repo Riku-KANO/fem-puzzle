@@ -98,7 +98,13 @@ pub fn ke1(nu: f64) -> Ke {
 }
 
 /// `y = K · x` for a 24×24 element matrix (axpy form, vectorises well).
-#[inline]
+///
+/// Kept out of line on purpose (T-312): when LLVM inlines it into a gather → `mul24` →
+/// scatter loop (`Operator::apply`, `mg::Level::apply`), the SLP vectoriser keeps the 24
+/// accumulators as scalars for the scatter and repacks them every column
+/// (`mov.d` + `fadd.2d` + `ext` + stack spills), which made native PCG ~2× slower. Out of
+/// line, the accumulators stay in vector registers. WASM is unaffected (scalar code).
+#[inline(never)]
 pub fn mul24(k: &Ke, x: &[f64; 24]) -> [f64; 24] {
     let mut y = [0.0; 24];
     for (j, col) in k.chunks_exact(24).enumerate() {

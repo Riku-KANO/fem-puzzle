@@ -14,8 +14,9 @@ and its limits and baseline are in [`perf-budget.json`](perf-budget.json).
 > integrated, plus the T-204 bench. The machine had other build jobs running (load average
 > about 5), so expect ±20 % run-to-run.
 >
-> **Known issue:** the native build of the fine-level kernel got about 2× slower with T-201's
-> last mg change. WASM is not affected. See [Known issue](#known-issue-native-codegen-regression).
+> **Resolved (T-312, a3c9cc5):** the native 2× slowdown from T-201's last mg change was fat-LTO
+> inlining of `hex8::mul24`; it is `#[inline(never)]` now. See
+> [Known issue](#known-issue-native-codegen-regression).
 
 ## Measured, replacing the estimate table
 
@@ -50,6 +51,36 @@ on both counts:
 - **Post-processing per move is under 0.5 ms on W4.** This covers the utilisation field,
   the displacement copy into a Float32Array, the judged max and the load displacement.
   It is not included in the warm time.
+
+## In the browser (Chrome, through the worker)
+
+T-205 measured these with the real web app and solver worker (its task Log, commit
+`f4e9486`).
+
+- **Setup:** Chrome 152 on the same M5 Pro, with a hidden tab and the dev server, release
+  wasm and `tol = 1e-4`.
+- **Load:** a load average of 11–13 from other agents' builds, so expect ±50 %.
+- **Columns:**
+  - *Warm* is the in-worker solve time (iterate + readback), median / max over 6–9 3×3 top
+    carves.
+  - *RTT* adds `postMessage` and transfer (carve posted → result received).
+  - *Load* runs from `init` posted to the first result; it includes the worker module, the
+    wasm fetch/compile, the Session and the cold solve.
+
+| stage + grid | precond | load ms | cold ms (it) | warm med / max ms (it) | RTT med / max ms |
+| --- | --- | ---: | ---: | ---: | ---: |
+| w1-01 24×8×4 | MG, 2 levels | 17.5 | 2.3 (10) | 3.1 / 3.9 (10–13) | 3.2 / 4.1 |
+| w1-03 24×8×4 | MG, 2 | 20.4 | 3.3 (10) | 3.8 / 4.3 (10–13) | 4.0 / 4.5 |
+| w2-01 32×8×8 | MG, 2 | 28.2 | 6.1 (9) | 7.5 / 8.9 (8–10) | 7.7 / 9.0 |
+| cantilever 40×12×12 | MG, 3 | 59 | 28.0 (11) | 22.9 / 26.7 (8–10) | 23.1 / 27.0 |
+| w2-01 32×8×8 | Jacobi | 18.7 | 38.6 (177) | 70.6 / 74.5 (191–361) | 70.7 / 74.6 |
+
+Chrome lands in the same range as Node, allowing for the heavier load: W4-sized is 23 ms
+against Node's 13–22 ms, so it is still about 20× inside the 500 ms budget.
+
+- `postMessage` and transfer add only 0.1–0.4 ms per move.
+- Applying the result on the main thread (colour repaint, HUD) takes 0.05–0.3 ms.
+- Safari (JSC) and Firefox are still unmeasured, as is frame render time.
 
 ## Full results
 
@@ -167,6 +198,13 @@ with `node scripts/bench-gate.mjs --record`. It refuses to record results that b
 
 ## Known issue: native codegen regression
 
+> **Status: resolved by T-312 (a3c9cc5).** Cause: under fat LTO `hex8::mul24` was inlined into
+> `Operator::apply`, where the vectoriser handled the 24 accumulators lane by lane and spilled
+> them on every column (≈2× inner-loop work). Fix: `#[inline(never)]` on `mul24`. Native 40×12×12
+> Jacobi warm is back to ≈95–115 ms, MG warm 10.4 ms; WASM unchanged (13.6 ms). The baseline in
+> `docs/perf-budget.json` was re-recorded after the fix. The original analysis follows.
+
+
 The gate caught a native-only slowdown when T-201's final commit `b97e3cd` was merged.
 `b97e3cd` brought "faster element loops" in `crates/fem/src/mg/level.rs`.
 
@@ -193,10 +231,9 @@ example, share one `#[inline(always)]` element-kernel function, or mark the hot 
 
 - **One machine.** Nothing was measured on a phone or an old laptop. The 35× W4 headroom
   should absorb a 3–10× slower device, but this is not verified.
-- **Node is not a browser.** Node shares V8 with Chrome; Safari (JSC) and Firefox were not
-  measured. Worker `postMessage` and rendering are not included. T-205 (web WASM backend)
-  will log in-browser per-carve timings in the format requested in its log; fold them in
-  here.
+- **Only Chrome was measured in a browser** (see above). Safari (JSC) and Firefox need a
+  manual run, because the agents only have Chromium. In the web app, use the browser
+  devtools and compare `result.elapsedMs` with the table above.
 - **The stage is synthetic, with one load case.** Real W4/W5 stages have two load cases,
   which are solved one after another, so expect about 2× the solve time (about 30 ms) —
   still far inside the budget. Keep cells and blocks change the active set, not the cost

@@ -46,18 +46,25 @@ use banded::BandedCholesky;
 use level::{Bound, ElemOp, Level};
 use transfer::{Transfer, galerkin_add};
 
+/// Largest accepted [`MgOptions::omega_cap`] (must stay below 2).
+pub const MAX_OMEGA_CAP: f64 = 1.99;
+
 /// Multigrid parameters.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MgOptions {
     /// Jacobi sweeps before and (the same number) after the coarse correction.
+    /// At least 1: the pre-smoother always runs, so 0 would make the V-cycle
+    /// nonsymmetric; [`Multigrid::new`] raises 0 to 1.
     pub sweeps: usize,
-    /// Jacobi damping `ω` (before the safety cap).
+    /// Jacobi damping `ω` (before the safety cap). Must be finite and > 0;
+    /// [`Multigrid::new`] replaces other values by the default 0.6.
     pub omega: f64,
-    /// Per-DOF cap `wᵢ ≤ omega_cap / λᵢ` with `λᵢ` the local bound of `λ_max(D⁻¹A)`;
-    /// must be < 2 for a guaranteed SPD V-cycle.
+    /// Per-DOF cap `wᵢ ≤ omega_cap / λᵢ` with `λᵢ` the local bound of `λ_max(D⁻¹A)`.
+    /// Must lie in (0, 2) for a guaranteed SPD V-cycle; [`Multigrid::new`] clamps it to
+    /// at most [`MAX_OMEGA_CAP`] and replaces non-positive / non-finite values by 1.9.
     pub omega_cap: f64,
     /// Matrix squarings for the coarse element bounds (`p = 2^(k+1)`, overestimate
-    /// ≤ `24^(1/p)`).
+    /// ≤ `24^(1/p)`); only used when `l1_damping` is off.
     pub bound_squarings: u32,
     /// Use assembled Gershgorin (l1) row ratios instead of element bounds for the
     /// per-DOF damping.
@@ -118,14 +125,33 @@ pub struct Multigrid {
 
 impl Multigrid {
     /// Empty preconditioner; the hierarchy is built on the first [`Precond::rebuild`].
+    ///
+    /// Options that would break the symmetry or definiteness of the V-cycle are corrected
+    /// (see the field docs of [`MgOptions`]); [`options`](Self::options) returns the
+    /// effective values.
     pub fn new(opts: MgOptions) -> Self {
+        let d = MgOptions::default();
+        let opts = MgOptions {
+            sweeps: opts.sweeps.max(1),
+            omega: if opts.omega.is_finite() && opts.omega > 0.0 {
+                opts.omega
+            } else {
+                d.omega
+            },
+            omega_cap: if opts.omega_cap.is_finite() && opts.omega_cap > 0.0 {
+                opts.omega_cap.min(MAX_OMEGA_CAP)
+            } else {
+                d.omega_cap
+            },
+            ..opts
+        };
         Multigrid {
             opts,
             ..Default::default()
         }
     }
 
-    /// The parameters this preconditioner was created with.
+    /// The effective parameters (after the corrections of [`new`](Self::new)).
     pub fn options(&self) -> &MgOptions {
         &self.opts
     }
@@ -161,10 +187,10 @@ impl Multigrid {
         while self.levels.len() < self.opts.max_levels.max(1)
             && cur.dofs() > self.opts.coarse_max_dofs
         {
-            let Some((c, f)) = grid::coarsen(&cur) else {
+            let Some((c, ax)) = grid::coarsen(&cur) else {
                 break;
             };
-            self.transfers.push(Transfer::new(cur, f));
+            self.transfers.push(Transfer::new(cur, ax));
             self.levels.push(Level::new_stored(c));
             cur = c;
         }
@@ -313,7 +339,9 @@ impl Multigrid {
                 }
                 symmetrize(out);
                 nonzero[ce] = out.iter().any(|&v| v != 0.0);
-                lam[ce] = if nonzero[ce] {
+                // The spectral bound only feeds element-based damping (it was ~40 % of a
+                // full rebuild on 60×20×20), so skip it under l1 damping.
+                lam[ce] = if nonzero[ce] && !opts.l1_damping {
                     spectral::lambda_max_bound(out, opts.bound_squarings)
                 } else {
                     0.0

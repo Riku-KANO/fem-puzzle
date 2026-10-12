@@ -4,7 +4,8 @@
 // World frame = stage frame: metres, Y-up, grid min corner at the origin. Voxel geometry
 // lives in grid units inside `domain` (scaled by the voxel size). Extension points:
 //   - T-302 deformation: `voxels.meshes()` (vertex → node ids) + `lastResult` displacements;
-//   - T-303 section/X-ray: `voxels.meshes()` materials (clipping), `pickFilter`;
+//   - T-303 section/X-ray: `views` (render/views/) masks the voxel mesh, owns the X-ray
+//     ghost mesh and the obstacle mesh, and narrows `pickFilter` / `isHidden`;
 //   - T-307/T-310 environment & debris: `env` group, `elementsRemoved()`;
 //   - T-308 thin-wall warning: `thinWalls` (kept in sync in `solidChanged`).
 
@@ -17,9 +18,11 @@ import type { RemovalCause, ViewPort } from '../game/controller.ts';
 import { cellCoords } from '../game/grid.ts';
 import { ThinWallMap } from '../game/thickness/thinWalls.ts';
 import type { PaletteId } from './colormap.ts';
+import { LoadTest } from './deform/loadTest.ts';
 import { buildJigs, supportPatches } from './jigs.ts';
 import { raycastGrid, type VoxelHit } from './picking.ts';
-import { buildBlockMesh, timeUniform, VoxelMesh } from './voxelMesh.ts';
+import { ViewLayers } from './views/viewLayers.ts';
+import { timeUniform, VoxelMesh } from './voxelMesh.ts';
 
 /** Height of the placeholder bench below the domain (matches T-307's workbench offset). */
 const BENCH_DROP = 0.16;
@@ -36,6 +39,12 @@ export class StageScene implements ViewPort {
   /** environment placeholder (bench) — T-307/T-310 replace its contents */
   readonly env = new THREE.Group();
   readonly voxels: VoxelMesh;
+  /** placeholder jigs (supports + load arrows named 'load'); T-302 animates the load jigs */
+  readonly jigs: THREE.Group;
+  /** 載荷テスト: deformation / crack / collapse show (T-302) */
+  readonly loadTest: LoadTest;
+  /** section / X-ray views (T-303): ghost mesh, obstacles, cut frame; `views.set(spec)` */
+  readonly views: ViewLayers;
   /** cells thinner than the 2-voxel minimum (T-308 warning tint + HUD count) */
   readonly thinWalls: ThinWallMap;
   /** cells that stop picking rays (T-303 narrows this for section/X-ray views) */
@@ -91,14 +100,19 @@ export class StageScene implements ViewPort {
     this.thinWalls = new ThinWallMap(g, state.solid, state.keep);
     this.voxels.setThin(this.thinWalls.thin);
     this.domain.add(this.voxels.group);
-    if (state.block.some((b) => b === 1)) this.domain.add(buildBlockMesh(g, state.block));
+    this.views = new ViewLayers(state, this.voxels, palette, () => {
+      const p = this.camera.position;
+      return [p.x / this.h, p.y / this.h, p.z / this.h];
+    });
+    this.domain.add(this.views.group);
     const boxGeo = new THREE.BoxGeometry(1.04, 1.04, 1.04);
     this.brushCarve = makeBrushMesh(boxGeo, 0xffffff, 0.32);
     this.brushProtected = makeBrushMesh(boxGeo, 0xff5a5a, 0.4);
     this.domain.add(this.brushCarve, this.brushProtected);
     this.scene.add(this.domain);
 
-    this.scene.add(buildJigs(stage));
+    this.jigs = buildJigs(stage);
+    this.scene.add(this.jigs);
     this.buildBench(size);
     this.scene.add(this.env);
 
@@ -112,8 +126,21 @@ export class StageScene implements ViewPort {
     this.controls.target.copy(this.center);
     this.resetCamera(extent);
 
-    this.pickFilter = (e) => state.solid[e] === 1 || state.block[e] === 1;
+    this.pickFilter = (e) => this.views.pickable(e);
     this.reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    this.loadTest = new LoadTest({
+      state,
+      domain: this.domain,
+      voxels: this.voxels.group,
+      jigs: this.jigs,
+      palette,
+      reducedMotion: this.reducedMotion,
+      floorY: -BENCH_DROP / this.h,
+      loadCrackTexture: true,
+    });
+    // section view (T-303): the load test shows the same cut; the X-ray ghost hides meanwhile
+    this.loadTest.sectionMask = () => this.views.sectionMask;
+    this.loadTest.hideWhilePlaying.push(this.views.ghost.group);
 
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(host);
@@ -128,16 +155,24 @@ export class StageScene implements ViewPort {
   // --- ViewPort -------------------------------------------------------------
 
   solidChanged(cells: readonly number[]): void {
+    this.loadTest.cancel();
     this.voxels.markDirty(cells);
     this.voxels.markDirty(this.thinWalls.update(cells));
+    this.views.solidChanged(cells);
   }
 
   setUtilization(u: Float32Array | null): void {
     this.voxels.setUtilization(u);
+    this.views.setUtilization(u);
+  }
+
+  isHidden(element: number): boolean {
+    return this.views.isHidden(element);
   }
 
   setResult(result: ResultMsg): void {
     this.lastResult = result;
+    this.loadTest.setResult(result);
   }
 
   elementsRemoved(cells: readonly number[], cause: RemovalCause): void {
@@ -178,13 +213,17 @@ export class StageScene implements ViewPort {
 
   setPalette(id: PaletteId): void {
     this.voxels.setPalette(id);
+    this.loadTest.setPalette(id);
+    this.views.setPalette(id);
   }
 
   dispose(): void {
     this.renderer.setAnimationLoop(null);
+    this.loadTest.dispose();
     this.resizeObserver.disconnect();
     this.controls.dispose();
     this.voxels.dispose();
+    this.views.dispose();
     this.scene.traverse((o) => {
       if (o instanceof THREE.Mesh || o instanceof THREE.LineSegments) {
         o.geometry.dispose();
@@ -261,6 +300,8 @@ export class StageScene implements ViewPort {
     this.controls.update();
     this.onFrame?.();
     this.voxels.update();
+    this.loadTest.update(timeMs);
+    this.views.update();
     this.renderer.render(this.scene, this.camera);
   }
 }
