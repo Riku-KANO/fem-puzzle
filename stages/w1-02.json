@@ -1,4 +1,10 @@
 {
+  "benchmark": {
+    "maxUtilization": 0.8996,
+    "method": "simp-oc",
+    "solid": "DwAAPwAA8QAA4QMAwQcAgQ8AIQ4A/x8ADwAAHwAAIQAAAQAAAQAAAQAAAQAA/xkADwAAHwAAIQAAAQAAAQAAAQAAAQAA/xkADwAAPwAA8QAA4QMAwQcAgQ8AIQ4A/x8A",
+    "volume": 0.20052083333333334
+  },
   "grid": [
     24,
     8,
@@ -56,7 +62,7 @@
       ],
       "force": [
         0.0,
-        -6000.0,
+        -23030.0,
         0.0
       ]
     }
@@ -75,9 +81,9 @@
     }
   ],
   "targets": {
-    "star1": 0.7,
-    "star2": 0.55,
-    "star3": 0.45
+    "star1": 0.5005,
+    "star2": 0.3505,
+    "star3": 0.2505
   },
   "title": "途中で押される片持ちはり",
   "version": 1,

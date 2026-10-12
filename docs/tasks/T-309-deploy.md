@@ -27,6 +27,9 @@ not covered by it, so the target is a **Workers + Static Assets** site serving `
   require-corp`) on every response, `.wasm` served as `application/wasm`; keep
   `apps/web/public/_headers` if Workers Static Assets honours it, otherwise configure headers
   the way `cf` supports and document it.
+- Build backend: `@cloudflare/vite-plugin` v2 beta (user decision) — **no wrangler package**.
+  Prefer `deploy/vite.config.ts` reusing apps/web; a conditional plugin in apps/web/vite.config.ts
+  (explicit mode only) is the fallback.
 - `cf build` (no credentials) must succeed locally; `pnpm deploy:cf` script runs build-wasm →
   web build → `cf deploy`. Do **not** run `cf deploy`, `cf auth login`, or create accounts.
 - `.github/workflows/deploy.yml` template: `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`
