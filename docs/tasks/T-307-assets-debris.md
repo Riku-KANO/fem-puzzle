@@ -1,7 +1,7 @@
 ---
 id: T-307
 title: Environment assets in Blender — workbench, jigs, debris pieces (glTF)
-status: review
+status: done
 phase: 1
 depends: [T-002]
 owns:

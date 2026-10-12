@@ -6,7 +6,7 @@
 #   scripts/verify.sh fast       # tasks + rust fmt/clippy/test + ts typecheck/test + stage drift
 #   scripts/verify.sh rust       # rust only
 #   scripts/verify.sh web        # ts typecheck/test + web build
-#   scripts/verify.sh full       # fast + Blender stage tests + wasm + web build + e2e + perf gate
+#   scripts/verify.sh full       # fast + Blender stage/asset checks + wasm + web build + e2e + perf gate
 #
 # Logs: .artifacts/verify/<step>.log. Output is kept short on purpose (agent context).
 set -uo pipefail
@@ -62,6 +62,9 @@ run_stages() {
 run_stage_tests() {
   if has_blender; then step stages-test bash scripts/build-stages.sh --test; else skip stages-test "(no Blender)"; fi
 }
+run_assets() {
+  if has_blender; then step assets-check bash tools/blender/assets/build.sh --check; else skip assets-check "(no Blender)"; fi
+}
 run_wasm() {
   step wasm-build pnpm build:wasm
   step wasm-smoke node crates/fem-wasm/tests/node-smoke.mjs
@@ -78,7 +81,7 @@ case "$PROFILE" in
   fast) run_tasks; run_rust; run_ts; run_stages ;;
   rust) run_rust ;;
   web) run_ts; run_web_build ;;
-  full) run_tasks; run_rust; run_ts; run_stages; run_stage_tests; run_wasm; run_web_build; run_e2e; run_bench ;;
+  full) run_tasks; run_rust; run_ts; run_stages; run_stage_tests; run_assets; run_wasm; run_web_build; run_e2e; run_bench ;;
   *) echo "unknown profile '$PROFILE' (fast|rust|web|full)"; exit 2 ;;
 esac
 
