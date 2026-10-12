@@ -6,12 +6,12 @@ import { describe, expect, it } from 'vitest';
 import {
   BENCH_COLLIDERS,
   BED_HALF,
-  CHIP_HALF_EXTENTS,
-  CHIP_NAMES,
   CLAMP,
   CYLINDER,
   DEBRIS_DENSITY,
   JIG_BOUNDS,
+  PIECE_HALF_EXTENTS,
+  PIECE_NAMES,
   PIN,
   SPREADER,
 } from './assetSpec.ts';
@@ -91,9 +91,9 @@ describe('asset constants match apps/web/public/assets', () => {
       pieces: Record<string, { convex: boolean; halfExtents: number[] }>;
     };
     expect(extras.density).toBe(DEBRIS_DENSITY);
-    for (const name of CHIP_NAMES) {
-      expect(extras.pieces[name]!.convex).toBe(true);
-      expect(extras.pieces[name]!.halfExtents).toEqual(CHIP_HALF_EXTENTS[name]);
+    for (const name of PIECE_NAMES) {
+      expect(extras.pieces[name]!.convex).toBe(name.startsWith('chip'));
+      expect(extras.pieces[name]!.halfExtents).toEqual(PIECE_HALF_EXTENTS[name]);
     }
   });
 });

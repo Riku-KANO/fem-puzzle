@@ -6,7 +6,8 @@
 //   - T-302 deformation: `voxels.meshes()` (vertex → node ids) + `lastResult` displacements;
 //   - T-303 section/X-ray: `views` (render/views/) masks the voxel mesh, owns the X-ray
 //     ghost mesh and the obstacle mesh, and narrows `pickFilter` / `isHidden`;
-//   - T-307/T-310 environment & debris: `env` group, `elementsRemoved()`;
+//   - T-310 environment & debris: `workshop` (render/env/) fills `env` with the glTF bench,
+//     room and jigs (hiding the `jigs` placeholders), casts the bed shadow, runs the debris;
 //   - T-308 thin-wall warning: `thinWalls` (kept in sync in `solidChanged`).
 
 import type { ResultMsg, Vec3 } from '@stress-carve/protocol';
@@ -19,6 +20,7 @@ import { cellCoords } from '../game/grid.ts';
 import { ThinWallMap } from '../game/thickness/thinWalls.ts';
 import type { PaletteId } from './colormap.ts';
 import { LoadTest } from './deform/loadTest.ts';
+import { Workshop } from './env/workshop.ts';
 import { buildJigs, supportPatches } from './jigs.ts';
 import { raycastGrid, type VoxelHit } from './picking.ts';
 import { ViewLayers } from './views/viewLayers.ts';
@@ -43,6 +45,8 @@ export class StageScene implements ViewPort {
   readonly jigs: THREE.Group;
   /** 載荷テスト: deformation / crack / collapse show (T-302) */
   readonly loadTest: LoadTest;
+  /** workshop environment, glTF jigs, bed shadow and debris physics (T-310) */
+  readonly workshop: Workshop;
   /** section / X-ray views (T-303): ghost mesh, obstacles, cut frame; `views.set(spec)` */
   readonly views: ViewLayers;
   /** cells thinner than the 2-voxel minimum (T-308 warning tint + HUD count) */
@@ -141,6 +145,19 @@ export class StageScene implements ViewPort {
     // section view (T-303): the load test shows the same cut; the X-ray ghost hides meanwhile
     this.loadTest.sectionMask = () => this.views.sectionMask;
     this.loadTest.hideWhilePlaying.push(this.views.ghost.group);
+    // workshop + glTF jigs + debris (T-310); the load test drives the glTF load jigs
+    this.workshop = new Workshop({
+      scene: this.scene,
+      env: this.env,
+      placeholders: this.jigs,
+      domain: this.domain,
+      renderer: this.renderer,
+      camera: this.camera,
+      state,
+      palette,
+    });
+    this.loadTest.loadJigs = () => this.workshop.loadJigs();
+    this.workshop.jigsLocked = () => this.loadTest.active;
 
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(host);
@@ -159,11 +176,13 @@ export class StageScene implements ViewPort {
     this.voxels.markDirty(cells);
     this.voxels.markDirty(this.thinWalls.update(cells));
     this.views.solidChanged(cells);
+    this.workshop.solidChanged(cells);
   }
 
   setUtilization(u: Float32Array | null): void {
     this.voxels.setUtilization(u);
     this.views.setUtilization(u);
+    this.workshop.setUtilization(u);
   }
 
   isHidden(element: number): boolean {
@@ -176,9 +195,7 @@ export class StageScene implements ViewPort {
   }
 
   elementsRemoved(cells: readonly number[], cause: RemovalCause): void {
-    // Debris hook: T-310 spawns falling chips here. Intentionally empty in the shell.
-    void cells;
-    void cause;
+    this.workshop.elementsRemoved(cells, cause);
   }
 
   showBrush(sel: BrushSelection | null): void {
@@ -215,6 +232,7 @@ export class StageScene implements ViewPort {
     this.voxels.setPalette(id);
     this.loadTest.setPalette(id);
     this.views.setPalette(id);
+    this.workshop.setPalette(id);
   }
 
   dispose(): void {
@@ -224,6 +242,7 @@ export class StageScene implements ViewPort {
     this.controls.dispose();
     this.voxels.dispose();
     this.views.dispose();
+    this.workshop.dispose();
     this.scene.traverse((o) => {
       if (o instanceof THREE.Mesh || o instanceof THREE.LineSegments) {
         o.geometry.dispose();
@@ -302,6 +321,7 @@ export class StageScene implements ViewPort {
     this.voxels.update();
     this.loadTest.update(timeMs);
     this.views.update();
+    this.workshop.update(timeMs);
     this.renderer.render(this.scene, this.camera);
   }
 }

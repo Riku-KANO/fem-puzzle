@@ -74,15 +74,17 @@ export const BENCH_COLLIDERS: readonly { name: string; center: Vec3; halfExtents
 /** Steel test-bed top extent (bench frame, centred), for the shadow-catcher plane. */
 export const BED_HALF: readonly [number, number] = [0.36, 0.21];
 
-export const CHIP_NAMES = ['chip_0', 'chip_1', 'chip_2', 'chip_3'] as const;
-export type ChipName = (typeof CHIP_NAMES)[number];
+/** Debris pieces (debris.glb children): four convex chips and a curled swarf. */
+export const PIECE_NAMES = ['chip_0', 'chip_1', 'chip_2', 'chip_3', 'swarf_0'] as const;
+export type PieceName = (typeof PIECE_NAMES)[number];
 
-/** Chip half extents (debris `extras.pieces`), m — the physics uses a box of this size. */
-export const CHIP_HALF_EXTENTS: Record<ChipName, Vec3> = {
+/** Piece half extents (debris `extras.pieces`), m — the physics uses a box of this size. */
+export const PIECE_HALF_EXTENTS: Record<PieceName, Vec3> = {
   chip_0: [0.00327, 0.00308, 0.00349],
   chip_1: [0.00438, 0.00169, 0.00326],
   chip_2: [0.00528, 0.002, 0.00215],
   chip_3: [0.00292, 0.00241, 0.00278],
+  swarf_0: [0.00442, 0.00272, 0.00415],
 };
 
 /** Aluminium (debris `extras.density`). */
