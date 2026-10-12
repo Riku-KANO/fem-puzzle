@@ -46,8 +46,9 @@ uses it to calibrate the stage so that it is fair but tight.
 
 ### 2026-10-12 — implemented (status → review)
 
-Last merged: main e744b7b's parent (T-101 done 60cc6c6, incl. review fixes 0e4fdd6; T-103 done
-40e999b; contract 27fa266). Calibrated stages committed in cdfb1c2.
+Last merged: main a527280 (T-201 done, multigrid default), which includes T-101 60cc6c6
+(review fixes 0e4fdd6), T-103 40e999b and contract 27fa266. Calibrated stages are committed
+in cdfb1c2. A forced recalibration with multigrid gives byte-identical files.
 
 **What**
 - `crates/topopt` (lib + CLI; usage and policy in `crates/topopt/README.md`):
@@ -128,8 +129,12 @@ Jacobi PCG, single thread). Volume is a fraction of the initial solid. The proje
 - **Sweep efficiency v·u**: minima at 0.25–0.35 for w1-01, w1-03 and w2-02. 0.45 for w2-03
   (its deck keep layer alone is 17 % of the solid). w1-02 and w2-01 keep improving down to
   0.20 and 0.15 respectively.
-- **Runtime**: every stage is under 31 s native release with Jacobi. The full forced build of
-  6 stages takes 94 s including Blender. `--check` takes ~5 s with the cache.
+- **Runtime** (native release; the table's sweep times are the Jacobi run):
+  - Jacobi: every stage under 31 s; full forced build of 6 stages 94 s including Blender.
+  - Multigrid (T-201, now default): 3.4/1.9/3.7/10.4/8.7/6.6 s per stage; full forced build
+    38 s.
+  - Results are identical: same bitmasks, loads, targets and maxUtilization.
+  - `--check` takes ~5–9 s with the cache.
 - **Determinism**: same code, same machine → identical files. Across solver revisions, a full
   recalibration can swap a near-tied mirror voxel (seen in w2-01/w2-03 between T-101
   revisions) without changing volume or utilisation. That is why `--check` relies on the
@@ -143,11 +148,10 @@ Jacobi PCG, single thread). Volume is a fraction of the initial solid. The proje
   - `verify.sh fast` is green.
 
 **Follow-ups**
-- **W3–W5 grids (40×12×12)** will be ~7× costlier per solve with Jacobi and may approach
-  60 s/stage. T-201 multigrid is used automatically (`Preconditioner::Multigrid`). Re-measure
-  when it lands. A numerics change there needs `TOPOPT_FORCE=1 bash scripts/build-stages.sh`
-  if `--check` or `tests/stages.rs` complain (rel. tol 1e-3 should absorb a preconditioner
-  swap).
+- **W3–W5 grids (40×12×12)**: with multigrid, expect well under 60 s/stage (W2 is ≤ 10 s).
+  Re-measure when T-406 adds stages. After a numerics change, if `--check` or
+  `tests/stages.rs` complain, run `TOPOPT_FORCE=1 bash scripts/build-stages.sh`. The
+  Jacobi→MG swap stayed within the rel. tol 1e-3.
 - **Game side (T-301/T-304)**: compare the player's solid *count* with
   `popcount(benchmark.solid)` for "beat the algorithm". `benchmark.volume` is exactly
   count/initial, but float comparison is brittle.
