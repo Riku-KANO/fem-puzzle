@@ -350,7 +350,9 @@ function stageSuite() {
       assert.equal(s.elements, elementCount(g), `${f}: elements`);
       assert.equal(s.nodes, nodeCount(g), `${f}: nodes`);
       const cold = solve(s);
-      checkSane(`${f} cold`, stage, s, cold, readResults(s));
+      const coldRes = readResults(s);
+      checkSane(`${f} cold`, stage, s, cold, coldRes);
+      const judged = coldRes.cases.map((c) => c.maxUtilization.toFixed(3)).join('/');
       // Carve up to 3 carvable surface voxels (highest y first) that keep the load connected.
       const n = elementCount(g);
       const solid = decodeBits(stage.solid, n);
@@ -376,7 +378,8 @@ function stageSuite() {
         carveMs += r.ms;
       }
       console.log(
-        `ok  ${f} ${g.join('×')}: cold ${fmt(cold.ms)}, ${carvedCount} carves avg ` +
+        `ok  ${f} ${g.join('×')}: uncarved max util ${judged}, cold ${fmt(cold.ms)} ` +
+          `(${cold.st.iterations} it), ${carvedCount} carves avg ` +
           `${fmt(carvedCount ? carveMs / carvedCount : 0)}`,
       );
     } finally {
