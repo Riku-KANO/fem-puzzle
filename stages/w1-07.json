@@ -1,0 +1,94 @@
+{
+  "benchmark": {
+    "maxUtilization": 0.8994,
+    "method": "simp-oc",
+    "solid": "/x8An/MB8QAH4QAO4QAG8QADn/MA/z/A/x8AAeABAQAPAQAYAQAwAQBjAeBj/x/+/x8AAeABAQAPAQAYAQAwAQBjAeBj/x/+/x8An/MB8QAH4QAO4QAG8QADn/MA/z/A",
+    "volume": 0.45
+  },
+  "block": "AAAAAAAAAP8AAP8AAP8AAP8AAAAAAAAAAAAAAAAAAP8AAP8AAP8AAP8AAAAAAAAAAAAAAAAAAP8AAP8AAP8AAP8AAAAAAAAAAAAAAAAAAP8AAP8AAP8AAP8AAAAAAAAA",
+  "grid": [
+    24,
+    8,
+    4
+  ],
+  "hints": [
+    "灰色の窓は障害物。そこには材料を置けない。",
+    "力は窓の上と下に分かれて流れる。窓の角のまわりの赤に注意。",
+    "窓から離れた青いところから削ろう。"
+  ],
+  "id": "w1-07",
+  "keep": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+  "loads": [
+    {
+      "cells": [
+        [
+          22,
+          7,
+          0
+        ],
+        [
+          23,
+          7,
+          0
+        ],
+        [
+          22,
+          7,
+          1
+        ],
+        [
+          23,
+          7,
+          1
+        ],
+        [
+          22,
+          7,
+          2
+        ],
+        [
+          23,
+          7,
+          2
+        ],
+        [
+          22,
+          7,
+          3
+        ],
+        [
+          23,
+          7,
+          3
+        ]
+      ],
+      "force": [
+        0.0,
+        -15580.0,
+        0.0
+      ]
+    }
+  ],
+  "material": {
+    "E": 70000000000.0,
+    "allowable": 120000000.0,
+    "density": 2700.0,
+    "nu": 0.33
+  },
+  "solid": "/////////wD//wD//wD//wD//////////////////wD//wD//wD//wD//////////////////wD//wD//wD//wD//////////////////wD//wD//wD//wD/////////",
+  "supports": [
+    {
+      "face": "x-",
+      "fix": "xyz"
+    }
+  ],
+  "targets": {
+    "star1": 0.75,
+    "star2": 0.6,
+    "star3": 0.5
+  },
+  "title": "窓のあいた板",
+  "version": 1,
+  "voxelSize": 0.01,
+  "world": 1
+}

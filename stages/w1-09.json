@@ -1,0 +1,215 @@
+{
+  "benchmark": {
+    "maxUtilization": 0.8993,
+    "method": "simp-oc",
+    "solid": "PwAAMQAAMQAAMQAAMQAAMQAAMQAAMQAAMwAAPwAA///B/x8AfzwAfnAAfMAD+P8BPwAAIQAAIQAAIQAAIQAAIQAAIQAAIQAAIQAAMQAA4eP/QQBwAgA4BAAcCAAG8P8DPwAAIQAAIQAAIQAAIQAAIQAAIQAAIQAAIQAAMQAA4eP/QQBwAgA4BAAcCAAG8P8DPwAAMQAAMQAAMQAAMQAAMQAAMQAAMQAAMwAAPwAA///A/x8AfzwAfnAAfMAD+P8B",
+    "volume": 0.4497549019607843
+  },
+  "grid": [
+    24,
+    16,
+    4
+  ],
+  "hints": [
+    "吊り荷の力は、腕を通って柱へ、柱を通って床へ流れる。",
+    "L字の内側の角には応力が集まる。角のまわりの色をよく見よう。",
+    "角に斜めの支えを残すと、腕も柱も楽になる。"
+  ],
+  "id": "w1-09",
+  "keep": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+  "loads": [
+    {
+      "cells": [
+        [
+          22,
+          10,
+          0
+        ],
+        [
+          23,
+          10,
+          0
+        ],
+        [
+          22,
+          10,
+          1
+        ],
+        [
+          23,
+          10,
+          1
+        ],
+        [
+          22,
+          10,
+          2
+        ],
+        [
+          23,
+          10,
+          2
+        ],
+        [
+          22,
+          10,
+          3
+        ],
+        [
+          23,
+          10,
+          3
+        ]
+      ],
+      "force": [
+        0.0,
+        -11730.0,
+        0.0
+      ]
+    }
+  ],
+  "material": {
+    "E": 70000000000.0,
+    "allowable": 120000000.0,
+    "density": 2700.0,
+    "nu": 0.33
+  },
+  "solid": "PwAAPwAAPwAAPwAAPwAAPwAAPwAAPwAAPwAAPwAA////////////////////////PwAAPwAAPwAAPwAAPwAAPwAAPwAAPwAAPwAAPwAA////////////////////////PwAAPwAAPwAAPwAAPwAAPwAAPwAAPwAAPwAAPwAA////////////////////////PwAAPwAAPwAAPwAAPwAAPwAAPwAAPwAAPwAAPwAA////////////////////////",
+  "supports": [
+    {
+      "cells": [
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          4,
+          0,
+          0
+        ],
+        [
+          5,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ],
+        [
+          1,
+          0,
+          1
+        ],
+        [
+          2,
+          0,
+          1
+        ],
+        [
+          3,
+          0,
+          1
+        ],
+        [
+          4,
+          0,
+          1
+        ],
+        [
+          5,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          2
+        ],
+        [
+          1,
+          0,
+          2
+        ],
+        [
+          2,
+          0,
+          2
+        ],
+        [
+          3,
+          0,
+          2
+        ],
+        [
+          4,
+          0,
+          2
+        ],
+        [
+          5,
+          0,
+          2
+        ],
+        [
+          0,
+          0,
+          3
+        ],
+        [
+          1,
+          0,
+          3
+        ],
+        [
+          2,
+          0,
+          3
+        ],
+        [
+          3,
+          0,
+          3
+        ],
+        [
+          4,
+          0,
+          3
+        ],
+        [
+          5,
+          0,
+          3
+        ]
+      ],
+      "face": "y-",
+      "fix": "xyz"
+    }
+  ],
+  "targets": {
+    "star1": 0.7498,
+    "star2": 0.5998,
+    "star3": 0.4998
+  },
+  "title": "クレーン",
+  "version": 1,
+  "voxelSize": 0.01,
+  "world": 1
+}

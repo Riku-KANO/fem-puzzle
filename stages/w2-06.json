@@ -1,0 +1,300 @@
+{
+  "benchmark": {
+    "maxUtilization": 0.8999,
+    "method": "simp-oc",
+    "solid": "AOAHAAAwDAAAAAAAAAAAAAAAAAAAAAAAAQAAgAMAAMAA4AcAADgcAAAeeACAB+ABwAGAA/AAAA8/AAD8DwAA8ADgBwAAeB4AAB54AIAH4AHgAYAHeAAAHh8AAPgPAADwAOAHAAB4HgAAHngAgAfgAeABgAd4AAAeHwAA+A8AAPAA4AcAAHgeAAAeeACAB+AB4AGAB3gAAB4fAAD4DwAA8ADgBwAAOBwAAB54AIAH4AHgAYAHeAAAHh8AAPgPAADwAOAHAAA4HAAAHngAgAfgAcABgAPwAAAPPwAA/A8AAPAA4AcAADAMAAAAAAAAAAAAAAAAAAAAAAABAACAAwAAwA==",
+    "volume": 0.2001953125
+  },
+  "grid": [
+    32,
+    8,
+    8
+  ],
+  "hints": [
+    "支点は両端の上のほう、荷重は下のまん中にぶら下がっている。",
+    "ぶら下げる形はケーブルのように引っぱりで支える。アーチを逆さにした形を探そう。"
+  ],
+  "id": "w2-06",
+  "keep": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+  "loads": [
+    {
+      "cells": [
+        [
+          15,
+          0,
+          0
+        ],
+        [
+          16,
+          0,
+          0
+        ],
+        [
+          15,
+          0,
+          1
+        ],
+        [
+          16,
+          0,
+          1
+        ],
+        [
+          15,
+          0,
+          2
+        ],
+        [
+          16,
+          0,
+          2
+        ],
+        [
+          15,
+          0,
+          3
+        ],
+        [
+          16,
+          0,
+          3
+        ],
+        [
+          15,
+          0,
+          4
+        ],
+        [
+          16,
+          0,
+          4
+        ],
+        [
+          15,
+          0,
+          5
+        ],
+        [
+          16,
+          0,
+          5
+        ],
+        [
+          15,
+          0,
+          6
+        ],
+        [
+          16,
+          0,
+          6
+        ],
+        [
+          15,
+          0,
+          7
+        ],
+        [
+          16,
+          0,
+          7
+        ]
+      ],
+      "force": [
+        0.0,
+        -74630.0,
+        0.0
+      ]
+    }
+  ],
+  "material": {
+    "E": 70000000000.0,
+    "allowable": 120000000.0,
+    "density": 2700.0,
+    "nu": 0.33
+  },
+  "solid": "/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////w==",
+  "supports": [
+    {
+      "cells": [
+        [
+          0,
+          6,
+          0
+        ],
+        [
+          0,
+          7,
+          0
+        ],
+        [
+          0,
+          6,
+          1
+        ],
+        [
+          0,
+          7,
+          1
+        ],
+        [
+          0,
+          6,
+          2
+        ],
+        [
+          0,
+          7,
+          2
+        ],
+        [
+          0,
+          6,
+          3
+        ],
+        [
+          0,
+          7,
+          3
+        ],
+        [
+          0,
+          6,
+          4
+        ],
+        [
+          0,
+          7,
+          4
+        ],
+        [
+          0,
+          6,
+          5
+        ],
+        [
+          0,
+          7,
+          5
+        ],
+        [
+          0,
+          6,
+          6
+        ],
+        [
+          0,
+          7,
+          6
+        ],
+        [
+          0,
+          6,
+          7
+        ],
+        [
+          0,
+          7,
+          7
+        ]
+      ],
+      "face": "x-",
+      "fix": "xyz"
+    },
+    {
+      "cells": [
+        [
+          31,
+          6,
+          0
+        ],
+        [
+          31,
+          7,
+          0
+        ],
+        [
+          31,
+          6,
+          1
+        ],
+        [
+          31,
+          7,
+          1
+        ],
+        [
+          31,
+          6,
+          2
+        ],
+        [
+          31,
+          7,
+          2
+        ],
+        [
+          31,
+          6,
+          3
+        ],
+        [
+          31,
+          7,
+          3
+        ],
+        [
+          31,
+          6,
+          4
+        ],
+        [
+          31,
+          7,
+          4
+        ],
+        [
+          31,
+          6,
+          5
+        ],
+        [
+          31,
+          7,
+          5
+        ],
+        [
+          31,
+          6,
+          6
+        ],
+        [
+          31,
+          7,
+          6
+        ],
+        [
+          31,
+          6,
+          7
+        ],
+        [
+          31,
+          7,
+          7
+        ]
+      ],
+      "face": "x+",
+      "fix": "xyz"
+    }
+  ],
+  "targets": {
+    "star1": 0.5002,
+    "star2": 0.3502,
+    "star3": 0.2502
+  },
+  "title": "吊り下げる",
+  "version": 1,
+  "voxelSize": 0.01,
+  "world": 2
+}

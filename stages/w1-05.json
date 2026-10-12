@@ -1,0 +1,93 @@
+{
+  "benchmark": {
+    "maxUtilization": 0.8998,
+    "method": "simp-oc",
+    "solid": "/z/AAzzAB9xgGRZjYRM8wREcwRAGMZABDXAAAxAA/x/AARiAARxAARYgARMwAREYwRAGMZABDXAAAxAA/x/AARiAARxAARYgARMwAREYwRAGMZABDXAAAxAA/z/AAzzAB9xgGRZjYRM8wREcwRAGMZABDXAAAxAA",
+    "volume": 0.3
+  },
+  "grid": [
+    12,
+    20,
+    4
+  ],
+  "hints": [
+    "支点は床、荷重は横向き。向きが変わっても、荷重から支点への流れを色で読むのは同じ。",
+    "根元の左右のふちが赤いのは、柱が曲げられているしるし。",
+    "まん中の青い芯をくり抜くと、二本の脚が見えてくる。"
+  ],
+  "id": "w1-05",
+  "keep": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+  "loads": [
+    {
+      "cells": [
+        [
+          0,
+          18,
+          0
+        ],
+        [
+          0,
+          19,
+          0
+        ],
+        [
+          0,
+          18,
+          1
+        ],
+        [
+          0,
+          19,
+          1
+        ],
+        [
+          0,
+          18,
+          2
+        ],
+        [
+          0,
+          19,
+          2
+        ],
+        [
+          0,
+          18,
+          3
+        ],
+        [
+          0,
+          19,
+          3
+        ]
+      ],
+      "force": [
+        25440.0,
+        0.0,
+        0.0
+      ]
+    }
+  ],
+  "material": {
+    "E": 70000000000.0,
+    "allowable": 120000000.0,
+    "density": 2700.0,
+    "nu": 0.33
+  },
+  "solid": "////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////",
+  "supports": [
+    {
+      "face": "y-",
+      "fix": "xyz"
+    }
+  ],
+  "targets": {
+    "star1": 0.6,
+    "star2": 0.45,
+    "star3": 0.35
+  },
+  "title": "看板の柱",
+  "version": 1,
+  "voxelSize": 0.01,
+  "world": 1
+}
