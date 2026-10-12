@@ -7,7 +7,7 @@
 import { decodeBitmask, elementCount, stageCases, type Stage, type Vec3 } from '@stress-carve/protocol';
 import * as THREE from 'three';
 import { faceDir } from '../game/grid.ts';
-import { supportCells } from '../game/supports.ts';
+import { supportCellCoords } from '../game/supports.ts';
 
 export interface SupportPatch {
   /** centre of the contact patch on the domain surface (m) */
@@ -40,7 +40,7 @@ export function supportPatches(stage: Stage): SupportPatch[] {
     const { axis, sign, normal } = faceDir(s.face);
     const u = (axis + 1) % 3;
     const v = (axis + 2) % 3;
-    const cells = supportCells(stage, s, solid);
+    const cells = supportCellCoords(stage, s, solid);
     for (const cluster of clusters(cells, u, v)) {
       let u0 = Infinity;
       let u1 = -Infinity;

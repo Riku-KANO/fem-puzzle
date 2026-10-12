@@ -55,7 +55,7 @@ describe('CarveState', () => {
     expect(s.redo()?.removed).toHaveLength(3);
     expect(s.toBitmask()).toBe(afterFirst);
     expect(s.canRedo).toBe(true);
-    s.carve([cellIndex(g, 0, 0, 0)]);
+    s.carve([cellIndex(g, 1, 0, 0)]);
     s.endStroke();
     expect(s.canRedo).toBe(false);
   });
@@ -64,6 +64,8 @@ describe('CarveState', () => {
     const s = new CarveState(stage);
     const load = cellIndex(s.grid, 23, 7, 0);
     expect(s.keep[load]).toBe(1);
+    expect(s.keep[cellIndex(s.grid, 0, 3, 1)]).toBe(1); // clamped face (supported cells)
+    expect(s.carve([cellIndex(s.grid, 0, 3, 1)])).toEqual([]);
     expect(s.carve([load])).toEqual([]);
     expect(s.solid[load]).toBe(1);
     expect(s.endStroke()).toBeNull();
