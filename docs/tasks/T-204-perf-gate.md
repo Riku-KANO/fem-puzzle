@@ -1,7 +1,7 @@
 ---
 id: T-204
 title: Phase 0 performance gate — native + WASM benchmarks, budget, report
-status: review
+status: done
 phase: 0
 depends: [T-201, T-202]
 owns:
