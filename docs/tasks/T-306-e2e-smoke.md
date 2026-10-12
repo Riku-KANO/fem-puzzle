@@ -85,7 +85,10 @@ open stage, hook snapshot, canvas read-back, carvable-spot finder, result waits)
 - this branch (mock; wasm spec skipped — T-205 not merged): whole command 4.4–5.0 s
   (build + preview ≈ 1.5 s, each test ≈ 2 s).
 - with T-205 (7b315da) merged temporarily + `pnpm build:wasm`: 3 passed, 13.0 s wall
-  (wasm test 4.0 s; HUD showed `wasm`, 301 iterations on w1-01). Merge was reset afterwards.
+  (wasm test 4.0 s; HUD showed `wasm`, 301 iterations on w1-01 — Jacobi, because this pkg
+  predates T-201 multigrid on main; T-205 expects ~10–13 with MG). Merge was reset afterwards.
+  The mock tests took ~3.7 s each in that run vs ~1.9 s alone: likely CPU contention with
+  the parallel wasm test (T-205 confirmed `?backend=mock` never fetches the wasm).
 - flake check: `--repeat-each=8 --workers=4` → 16/16 passed (20.5 s).
 - `scripts/verify.sh full` on this branch: all PASS, `e2e 5s` (perf-gate SKIP, no gate yet).
 
