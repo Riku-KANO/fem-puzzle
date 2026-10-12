@@ -1,4 +1,10 @@
 {
+  "benchmark": {
+    "maxUtilization": 0.8999,
+    "method": "simp-oc",
+    "solid": "D/5/8A4AAHAAAAAAAAAAAAAAAAAAAAAAAAZgAAD8PwD/////HgAA+DAAAAxgAAAGwAGAA4ADwAEAB+AAAPx/AP////8/AAD8cAAADuAAAAfAAYADgAPAAQAH4AAA/D8A//////8BgP/wAAAP4AGAB8ADwAMAB+ABAAZgAAD8PwD//////wGA//AAAA/gAYAHwAPAAwAH4AEABmAAAPw/AP////8/AAD8cAAADuAAAAfAAYADgAPAAQAH4AAA/D8A/////x4AAPgwAAAMYAAABsABgAOAA8ABAAfgAAD8fwAP/n/wDgAAcAAAAAAAAAAAAAAAAAAAAAAABmAAAPw/AA==",
+    "volume": 0.2998046875
+  },
   "grid": [
     32,
     8,
@@ -96,7 +102,7 @@
       ],
       "force": [
         0.0,
-        -12000.0,
+        -57330.0,
         0.0
       ]
     },
@@ -185,7 +191,7 @@
       ],
       "force": [
         0.0,
-        -12000.0,
+        -57330.0,
         0.0
       ]
     }
@@ -372,9 +378,9 @@
     }
   ],
   "targets": {
-    "star1": 0.7,
-    "star2": 0.55,
-    "star3": 0.45
+    "star1": 0.5998,
+    "star2": 0.4498,
+    "star3": 0.3498
   },
   "title": "二点で押されるはり",
   "version": 1,
