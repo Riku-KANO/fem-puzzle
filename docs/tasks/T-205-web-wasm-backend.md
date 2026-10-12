@@ -8,6 +8,9 @@ owns:
   - apps/web/src/solver/wasm/**
 touches:
   - apps/web/src/solver/worker.ts
+  - apps/web/src/solver/backends.ts
+  - apps/web/src/game/boot.ts         # ?backend= → options (approved by main)
+  - apps/web/src/game/controller.ts   # fallback toast in onReady (approved by main)
   - apps/web/package.json
   - apps/web/vite.config.ts
   - apps/web/tsconfig.json

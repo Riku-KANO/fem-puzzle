@@ -7,6 +7,7 @@ import type { PaletteId } from '../render/colormap.ts';
 import { attachPointerInput } from '../render/input.ts';
 import { StageScene } from '../render/scene.ts';
 import { SolverClient, spawnSolverWorker } from '../solver/client.ts';
+import { backendFromUrl } from '../solver/wasm/options.ts';
 import { CarveState } from './carveState.ts';
 import { GameController, type HudModel } from './controller.ts';
 
@@ -21,7 +22,7 @@ export function startGame(host: HTMLElement, stage: Stage, hud: HudModel, palett
   const state = new CarveState(stage);
   const scene = new StageScene(host, state, palette);
   const solver = new SolverClient(spawnSolverWorker());
-  const controller = new GameController(state, solver, scene, hud, { tol: 1e-4 });
+  const controller = new GameController(state, solver, scene, hud, { tol: 1e-4, ...backendFromUrl(location.search) });
   scene.onFrame = () => controller.flush();
   const detach = attachPointerInput(scene.canvas, {
     pick: (x, y) => scene.pick(x, y),
