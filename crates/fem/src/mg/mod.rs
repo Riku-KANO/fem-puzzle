@@ -17,10 +17,13 @@
 //!
 //! # V-cycle
 //! `ν` damped-Jacobi sweeps before and after the coarse correction (symmetric, so the
-//! V-cycle is a symmetric operator), banded Cholesky on the coarsest level. Each level's
-//! damping is capped by an element-wise Gershgorin bound of `λ_max(D⁻¹A)` so that
-//! `ω·λ_max < 2` holds rigorously; with an (exactly) Galerkin hierarchy this makes the
-//! V-cycle SPD. On masked DOFs the V-cycle returns `z = r`.
+//! V-cycle is a symmetric operator), banded Cholesky on the coarsest level. The damping is
+//! per DOF, `wᵢ = min(ω, cap/λᵢ)`, where `λᵢ` combines rigorous per-element bounds of
+//! `λ_max(Dₑ⁻¹Kₑ)` (`spectral`), so `λ_max(W A) ≤ cap < 2` on every level. With an exactly
+//! Galerkin hierarchy this makes the V-cycle SPD. A single global `ω` is not enough:
+//! Galerkin elements built from sparse (carved / low-density) children reach
+//! `λ_max(Dₑ⁻¹Kₑ)` ≫ 3, and `ω = 0.6` everywhere diverges on carved designs, while solid
+//! regions keep `ω = 0.6` (`λ_max(D⁻¹Ke1) ≈ 3.1`). On masked DOFs the V-cycle returns `z = r`.
 //!
 //! # Incremental rebuild
 //! [`Precond::rebuild`] diffs `coef` and `free` against its own copy; only coarse elements
@@ -29,6 +32,7 @@
 mod banded;
 pub(crate) mod grid;
 mod level;
+mod spectral;
 mod transfer;
 
 #[cfg(test)]
@@ -49,9 +53,15 @@ pub struct MgOptions {
     pub sweeps: usize,
     /// Jacobi damping `ω` (before the safety cap).
     pub omega: f64,
-    /// Cap `ω ≤ omega_cap / λ̄` with `λ̄` the Gershgorin bound of `λ_max(D⁻¹A)`;
+    /// Per-DOF cap `wᵢ ≤ omega_cap / λᵢ` with `λᵢ` the local bound of `λ_max(D⁻¹A)`;
     /// must be < 2 for a guaranteed SPD V-cycle.
     pub omega_cap: f64,
+    /// Matrix squarings for the coarse element bounds (`p = 2^(k+1)`, overestimate
+    /// ≤ `24^(1/p)`).
+    pub bound_squarings: u32,
+    /// Use assembled Gershgorin (l1) row ratios instead of element bounds for the
+    /// per-DOF damping.
+    pub l1_damping: bool,
     /// Stop coarsening once a level has at most this many DOFs.
     pub coarse_max_dofs: usize,
     /// Maximum number of levels (including the finest).
@@ -66,6 +76,8 @@ impl Default for MgOptions {
             sweeps: 1,
             omega: 0.6,
             omega_cap: 1.9,
+            bound_squarings: 3,
+            l1_damping: true,
             coarse_max_dofs: 2000,
             max_levels: 12,
             pivot_drop_tol: 1e-11,
@@ -130,12 +142,9 @@ impl Multigrid {
         self.coarse.as_ref().map(|c| (c.n(), c.bandwidth()))
     }
 
-    /// Damping used on each level (after the Gershgorin cap) and the bound itself.
+    /// Smallest and largest Jacobi damping over the free DOFs of each level.
     pub fn level_damping(&self) -> Vec<(f64, f64)> {
-        self.levels
-            .iter()
-            .map(|l| (omega_for(&self.opts, l.lambda_bound), l.lambda_bound))
-            .collect()
+        self.levels.iter().map(|l| l.damping).collect()
     }
 
     /// (Re)create the hierarchy for grid `g`.
@@ -222,7 +231,7 @@ impl Multigrid {
     /// Re-assemble the marked coarse elements level by level and refactor the coarsest.
     fn propagate(&mut self) {
         let opts = self.opts;
-        self.levels[0].update_diag(|b| omega_for(&opts, b));
+        self.levels[0].update_diag(opts.omega, opts.omega_cap, opts.l1_damping);
         let mut rebuilt = 0;
         let mut children = [(0usize, 0usize); 8];
         let mut ke = [0.0f64; 576];
@@ -240,7 +249,7 @@ impl Multigrid {
             let (fine, coarse) = (&lo[l], &mut hi[0]);
             let tr = &self.transfers[l];
             let q0 = if l == 0 { Some(&self.q0) } else { None };
-            let ElemOp::Stored { mats, nonzero } = &mut coarse.op else {
+            let ElemOp::Stored { mats, nonzero, lam } = &mut coarse.op else {
                 unreachable!("coarse levels store matrices");
             };
             for &ce in &self.list[l + 1] {
@@ -263,9 +272,14 @@ impl Multigrid {
                 }
                 symmetrize(out);
                 nonzero[ce] = out.iter().any(|&v| v != 0.0);
+                lam[ce] = if nonzero[ce] {
+                    spectral::lambda_max_bound(out, opts.bound_squarings)
+                } else {
+                    0.0
+                };
                 rebuilt += 1;
             }
-            coarse.update_diag(|b| omega_for(&opts, b));
+            coarse.update_diag(opts.omega, opts.omega_cap, opts.l1_damping);
         }
         let last = self.levels.len() - 1;
         for e in std::mem::take(&mut self.list[last]) {
@@ -333,10 +347,6 @@ impl Precond for Multigrid {
     fn levels(&self) -> usize {
         self.levels.len()
     }
-}
-
-fn omega_for(opts: &MgOptions, lambda_bound: f64) -> f64 {
-    opts.omega.min(opts.omega_cap / lambda_bound)
 }
 
 /// `K ← (K + Kᵀ) / 2` for a 24×24 row-major matrix.
