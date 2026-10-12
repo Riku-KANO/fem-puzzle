@@ -68,6 +68,9 @@ fn dot(a: &[f64], b: &[f64]) -> f64 {
 }
 
 /// Plain PCG from x = 0. Returns `(x, iterations, min over iterations of zᵀr / (‖z‖‖r‖))`.
+///
+/// Asserts that CG does not break down (`pᵀAp > 0`, `rᵀz > 0`) and that the energy
+/// `φ(x) = ½xᵀAx − fᵀx` (the A-norm error up to a constant) decreases monotonically.
 pub(super) fn pcg(
     op: &Operator,
     pc: &mut dyn Precond,
@@ -86,15 +89,27 @@ pub(super) fn pcg(
     let mut rz = dot(&r, &z);
     let mut min_cos = rz / (dot(&z, &z).sqrt() * fnorm);
     let mut it = 0;
+    let mut phi = 0.0f64;
+    let mut ax = vec![0.0; n];
     while it < max_iters && dot(&r, &r).sqrt() > tol * fnorm {
         op.apply(&p, &mut q);
-        let alpha = rz / dot(&p, &q);
+        let pap = dot(&p, &q);
+        assert!(pap > 0.0, "breakdown: pᵀAp = {pap} at iteration {it}");
+        let alpha = rz / pap;
         for i in 0..n {
             x[i] += alpha * p[i];
             r[i] -= alpha * q[i];
         }
+        op.apply(&x, &mut ax);
+        let phi_new = 0.5 * dot(&x, &ax) - dot(f, &x);
+        assert!(
+            phi_new < phi + 1e-12 * phi.abs(),
+            "energy increased at iteration {it}: {phi} → {phi_new}"
+        );
+        phi = phi_new;
         pc.apply(&r, &mut z);
         let rz_new = dot(&r, &z);
+        assert!(rz_new > 0.0 || dot(&r, &r) == 0.0, "rᵀz = {rz_new} at {it}");
         let rn = dot(&r, &r).sqrt();
         if rn > 0.0 {
             min_cos = min_cos.min(rz_new / (dot(&z, &z).sqrt() * rn));
