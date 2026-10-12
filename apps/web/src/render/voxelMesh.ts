@@ -53,7 +53,8 @@ export function createVoxelMaterial(): THREE.MeshLambertMaterial {
           diffuseColor.rgb *= mix(0.62, 1.0, stripe);
         }
         // thin-wall warning (T-308): 3×3 dots per voxel face in grid space, dark ink on light
-        // colours and light ink on dark ones; anti-aliased into an even tint when far away
+        // colours and light ink on dark ones (hard switch: a cell's colour is uniform, a blend
+        // would lose contrast at mid luminance); anti-aliased into an even tint when far away
         // (derivatives taken outside the per-quad branch)
         vec3 thinP = vGridPos * 3.0;
         float thinW = max(fwidth(thinP.x), max(fwidth(thinP.y), fwidth(thinP.z))) + 1e-4;
@@ -64,7 +65,7 @@ export function createVoxelMaterial(): THREE.MeshLambertMaterial {
           vec3 thinInk = thinLum > 0.18
             ? diffuseColor.rgb * 0.3
             : mix(diffuseColor.rgb, vec3(1.0, 0.86, 0.55), 0.65);
-          diffuseColor.rgb = mix(diffuseColor.rgb, thinInk, thinDot * 0.9);
+          diffuseColor.rgb = mix(diffuseColor.rgb, thinInk, thinDot * 0.75);
         }
         {
           vec3 fw = fwidth(vGridPos);
