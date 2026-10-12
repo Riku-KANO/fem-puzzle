@@ -30,9 +30,12 @@ Design doc: ゲームモード (キャンペーン), 公開形態 (記録はブ�
 
 ### 2026-10-12 — T-304 worker: campaign, records, resume, routing (status → review)
 
-**Built.** Verify: web typecheck (svelte-check 0 warnings), web vitest 234 tests (6 new files,
-67 T-304 tests), `vite build`, T-306 e2e (2 passed, wasm skipped: T-205 not on main),
-`scripts/verify.sh fast` all green. Main merged at 44326bf (incl. T-301, T-306, T-308, T-311).
+**Built.** Verify: web typecheck (svelte-check 0 warnings), web vitest 253 tests (6 new files,
+86 T-304 tests), `vite build`, T-306 e2e (2 passed, wasm skipped: T-205 not on main),
+`scripts/verify.sh fast` all green. Main merged at ac64fb9 (incl. T-301, T-303, T-306, T-308,
+T-311). T-303: `views.setStage(grid)` is called in `bindSession` (stage switch and restart);
+checked section view on w1-01 (z cut 2/4) → switch to w2-01 keeps 断面 with the cut reset to
+4/8.
 
 **Module map.**
 - `game/progress/storage.ts` — `VersionedValue<T>`: JSON envelope `{v, data}`; load never
@@ -101,7 +104,7 @@ saved carve = w1-01 benchmark bitmask → resumed at 29.9 %, 提出 → クリ�
 `{stars 3, volume 0.2995, beatBenchmark false (tie), clears 1}` stored; 次のステージへ →
 `#/stage/w1-02` (old session and result card gone, one canvas); ステージ選択へ → 1-1 ★★★ 最良
 29.9 %, 1-2 open, 1-3 locked, "クリア 1 / 3 ・ あと 2 ステージで ワールド2 解放". No console
-errors after reload. Unit tests 234, e2e 2 passed / 1 skipped (wasm) after this merge.
+errors after reload.
 
 **Follow-ups / notes.**
 - `game/stages.ts::pickInitialStage` (+ its test) is now unused — remove in a T-102-owned
