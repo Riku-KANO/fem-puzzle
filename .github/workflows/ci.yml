@@ -28,6 +28,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Playwright chromium (e2e step of verify full)
+        run: pnpm --filter @stress-carve/web exec playwright install --with-deps chromium
+
       # Blender is not installed in CI: stage JSON is validated by the protocol tests;
       # stage drift (`build-stages.sh --check`) runs locally where Blender exists.
       - run: bash scripts/verify.sh full
@@ -36,4 +39,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: verify-logs
-          path: .artifacts/verify/
+          path: |
+            .artifacts/verify/
+            apps/web/test-results/

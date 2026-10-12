@@ -1,0 +1,10 @@
+# deploy/ is a standalone pnpm project with its own lockfile, deliberately NOT part of the
+# root workspace: cf, the Cloudflare Vite plugin and workerd (~100 MB) stay out of the game's
+# install, verify.sh and every worktree. Run it with `pnpm --dir deploy <script>`.
+
+# pnpm 11 fails `install` on unreviewed postinstall scripts. workerd and esbuild only use
+# theirs to fetch/validate the platform binary, which pnpm already installs through the
+# optional @cloudflare/workerd-<os>-<arch> / @esbuild/<os>-<arch> packages — so deny them.
+allowBuilds:
+  esbuild: false
+  workerd: false

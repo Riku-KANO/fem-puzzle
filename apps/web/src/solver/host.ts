@@ -105,18 +105,13 @@ export class SolverHost {
         return 0;
       }
       case 'carve': {
-        const backend = this.requireBackend();
-        const solid = this.solid!;
-        const removed = Uint32Array.from(msg.removed);
-        const restored = Uint32Array.from(msg.restored);
-        if (removed.length) backend.setSolid(removed, false);
-        if (restored.length) backend.setSolid(restored, true);
-        for (const e of removed) solid[e] = 0;
-        for (const e of restored) solid[e] = 1;
+        this.requireBackend();
+        this.applySolid(Uint32Array.from(msg.removed), false);
+        this.applySolid(Uint32Array.from(msg.restored), true);
         return msg.seq;
       }
       case 'setSolid': {
-        const backend = this.requireBackend();
+        this.requireBackend();
         const solid = this.solid!;
         const next = decodeBitmask(msg.solid, solid.length);
         const removed: number[] = [];
@@ -125,14 +120,25 @@ export class SolverHost {
           if (next[e] === solid[e]) continue;
           (next[e] ? restored : removed).push(e);
         }
-        if (removed.length) backend.setSolid(Uint32Array.from(removed), false);
-        if (restored.length) backend.setSolid(Uint32Array.from(restored), true);
-        solid.set(next);
+        this.applySolid(Uint32Array.from(removed), false);
+        this.applySolid(Uint32Array.from(restored), true);
         return msg.seq;
       }
       default:
         return null;
     }
+  }
+
+  /**
+   * One `backend.setSolid` batch, mirrored only once it succeeded: if a later batch of the
+   * same message throws, the mirror still matches what the backend actually holds.
+   */
+  private applySolid(indices: Uint32Array, solid: boolean): void {
+    if (indices.length === 0) return;
+    this.requireBackend().setSolid(indices, solid);
+    const mirror = this.solid!;
+    const v = solid ? 1 : 0;
+    for (const e of indices) if (e < mirror.length) mirror[e] = v;
   }
 
   private requireBackend(): Backend {
