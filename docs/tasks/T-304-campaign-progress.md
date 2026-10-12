@@ -30,9 +30,9 @@ Design doc: ゲームモード (キャンペーン), 公開形態 (記録はブ�
 
 ### 2026-10-12 — T-304 worker: campaign, records, resume, routing (status → review)
 
-**Built.** Verify: web typecheck (svelte-check 0 warnings), web vitest 169 tests (5 new files,
-65 T-304 tests), `vite build`, T-306 e2e (2 passed, wasm skipped: T-205 not on main),
-`scripts/verify.sh fast` all green. Main merged at 597397e.
+**Built.** Verify: web typecheck (svelte-check 0 warnings), web vitest 234 tests (6 new files,
+67 T-304 tests), `vite build`, T-306 e2e (2 passed, wasm skipped: T-205 not on main),
+`scripts/verify.sh fast` all green. Main merged at 44326bf (incl. T-301, T-306, T-308, T-311).
 
 **Module map.**
 - `game/progress/storage.ts` — `VersionedValue<T>`: JSON envelope `{v, data}`; load never
@@ -79,12 +79,12 @@ Design doc: ゲームモード (キャンペーン), 公開形態 (記録はブ�
 
 **Agreed with T-301** (StageClear contract, structural, in their `game/judge` and my
 `records.ts`): `{stageId, stars 0..3, volumeFraction, beatsBenchmark, solid}` fired once per
-passed submit. Whoever lands later wires in App.svelte: `result.onClear = actions.clear;`
-`result.bestOf = (id) => { const r = progress.record(id); return r ? { stars: r.stars,
-volumeFraction: r.volume } : null; };` `<ResultScreen … onNext={actions.next}
-onSelect={actions.select} />`; `result.close()` first in the session `$effect` cleanup and
-in `actions.restart` (before the old GameSession is disposed); `$effect(() => () =>
-result.dispose())` for unmount.
+passed submit. T-301 landed first (839bf53), so I wired it in App.svelte when merging main
+(44326bf): `result.onClear = (c) => actions.clear(c)`; `result.bestOf` maps `record.volume`
+→ `volumeFraction` (read before recording → 自己ベスト更新); `<ResultScreen onNext={actions.next}
+onSelect={actions.select}>`; `result.close()` first in the session `$effect` cleanup and in
+`actions.restart` (before the old GameSession is disposed); `$effect(() => () =>
+result.dispose())` for unmount (replaces T-301's onMount cleanup).
 **Agreed with T-306**: deep link `/?backend=mock#/stage/<id>`; `?stage=` keeps working;
 data-screen on `<html>`; fresh Playwright context ⇒ no resume. Trial-merged their branch and
 ran their e2e green before they landed; green again after merging main.
@@ -96,7 +96,12 @@ injected records (★3 + benchmark, ★1, ★2) → W1 cleared 3/3, W2 unlocked,
 つづきから 両端で支えるはり; `?backend=mock&stage=w1-02` → `?backend=mock#/stage/w1-02`;
 `#/stage/w9-99` → `#/select` + notice; 最初から (two presses) → 100 %, saved carve removed;
 back/forward between select and stage switch sessions cleanly; 375 px wide: no horizontal
-scroll; Space on a focused card opens it. No console errors.
+scroll; Space on a focused card opens it. After merging T-301 (calibrated stages on main):
+saved carve = w1-01 benchmark bitmask → resumed at 29.9 %, 提出 → クリア! ★★★, record
+`{stars 3, volume 0.2995, beatBenchmark false (tie), clears 1}` stored; 次のステージへ →
+`#/stage/w1-02` (old session and result card gone, one canvas); ステージ選択へ → 1-1 ★★★ 最良
+29.9 %, 1-2 open, 1-3 locked, "クリア 1 / 3 ・ あと 2 ステージで ワールド2 解放". No console
+errors after reload. Unit tests 234, e2e 2 passed / 1 skipped (wasm) after this merge.
 
 **Follow-ups / notes.**
 - `game/stages.ts::pickInitialStage` (+ its test) is now unused — remove in a T-102-owned
