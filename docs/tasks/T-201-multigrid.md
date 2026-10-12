@@ -1,7 +1,7 @@
 ---
 id: T-201
 title: Geometric multigrid preconditioner (MGCG) with Galerkin coarse operators
-status: todo
+status: doing
 phase: 0
 depends: [T-101]
 owns:

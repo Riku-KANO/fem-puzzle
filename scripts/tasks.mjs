@@ -3,9 +3,15 @@
 // with a small YAML front matter (see docs/loop/README.md). No dependencies on purpose.
 //
 //   node scripts/tasks.mjs [list]          board grouped by status
-//   node scripts/tasks.mjs ready           todo tasks whose deps are done and whose `owns`
-//                                          paths do not overlap a task in progress
-//   node scripts/tasks.mjs plan [N]        greedily pick ≤ N ready tasks with disjoint `owns`
+//   node scripts/tasks.mjs ready [--early] todo tasks whose deps are done and whose `owns`
+//                                          paths do not overlap a task in progress.
+//                                          --early: deps may also be in progress (doing/review) —
+//                                          the worker codes against the contract and pulls the
+//                                          dependency's branch; it integrates after its deps.
+//   node scripts/tasks.mjs plan [N] [--early]  greedily pick ≤ N ready tasks with disjoint `owns`
+//
+// `owns` entries starting with "!" are exclusions: `crates/fem/**` + `!crates/fem/src/mg/**`
+// lets another task own the mg module while this one is in progress.
 //   node scripts/tasks.mjs show <id>       print one task file
 //   node scripts/tasks.mjs set <id> <status>
 //   node scripts/tasks.mjs check           validate all task files (used by verify.sh)
@@ -63,32 +69,41 @@ function loadTasks() {
   });
 }
 
-/** Two glob-ish path patterns overlap if one is a prefix of the other (after stripping globs). */
+const base = (p) => p.replace(/^!/, '').replace(/\*.*$/, '').replace(/\/$/, '');
+/** `inner` lies inside `outer` (path prefix after stripping globs). */
+const within = (inner, outer) => outer === '' || inner === outer || inner.startsWith(outer + '/');
+
+/**
+ * Two ownership lists overlap if some included path of one lies inside an included path of
+ * the other and is not carved out by an exclusion ("!path") of the containing list.
+ */
 function ownsOverlap(a, b) {
-  const base = (p) => p.replace(/\*.*$/, '').replace(/\/$/, '');
-  for (const pa of a) {
-    for (const pb of b) {
-      const x = base(pa);
-      const y = base(pb);
-      if (x === y || x.startsWith(y + '/') || y.startsWith(x + '/') || x === '' || y === '') return true;
+  const inc = (l) => l.filter((p) => !p.startsWith('!')).map(base);
+  const exc = (l) => l.filter((p) => p.startsWith('!')).map(base);
+  const [ia, ea, ib, eb] = [inc(a), exc(a), inc(b), exc(b)];
+  for (const x of ia) {
+    for (const y of ib) {
+      if (within(y, x) && !ea.some((e) => within(y, e))) return true;
+      if (within(x, y) && !eb.some((e) => within(x, e))) return true;
     }
   }
   return false;
 }
 
-function readyTasks(tasks) {
+function readyTasks(tasks, early = false) {
   const byId = new Map(tasks.map((t) => [t.id, t]));
   const active = tasks.filter((t) => t.status === 'doing' || t.status === 'review');
+  const satisfied = early ? ['done', 'doing', 'review'] : ['done'];
   return tasks
     .filter((t) => t.status === 'todo')
-    .filter((t) => t.depends.every((d) => byId.get(d)?.status === 'done'))
+    .filter((t) => t.depends.every((d) => satisfied.includes(byId.get(d)?.status)))
     .filter((t) => !active.some((a) => ownsOverlap(a.owns, t.owns)))
     .sort((a, b) => a.phase - b.phase || a.id.localeCompare(b.id));
 }
 
-function plan(tasks, n) {
+function plan(tasks, n, early = false) {
   const chosen = [];
-  for (const t of readyTasks(tasks)) {
+  for (const t of readyTasks(tasks, early)) {
     if (chosen.length >= n) break;
     if (chosen.some((c) => ownsOverlap(c.owns, t.owns))) continue;
     chosen.push(t);
@@ -167,11 +182,14 @@ function printBoard(tasks) {
     }
   }
   const ready = readyTasks(tasks).map((t) => t.id);
+  const earlyOnly = readyTasks(tasks, true).filter((t) => !ready.includes(t.id)).map((t) => t.id);
   console.log(`\nready: ${ready.length ? ready.join(', ') : '(none)'}`);
+  if (earlyOnly.length) console.log(`early-start possible: ${earlyOnly.join(', ')}`);
 }
 
 const [cmd = 'list', ...args] = process.argv.slice(2);
 const json = args.includes('--json');
+const early = args.includes('--early');
 const positional = args.filter((a) => !a.startsWith('--'));
 const tasks = loadTasks();
 const out = (v, human) => (json ? console.log(JSON.stringify(v, null, 2)) : human());
@@ -181,12 +199,12 @@ switch (cmd) {
     out(tasks, () => printBoard(tasks));
     break;
   case 'ready': {
-    const r = readyTasks(tasks);
+    const r = readyTasks(tasks, early);
     out(r, () => r.forEach((t) => console.log(`${t.id}\t${t.title}\towns=${t.owns.join(',')}`)));
     break;
   }
   case 'plan': {
-    const p = plan(tasks, Number(positional[0] ?? 4));
+    const p = plan(tasks, Number(positional[0] ?? 4), early);
     out(p, () => p.forEach((t) => console.log(`${t.id}\t${t.file}`)));
     break;
   }

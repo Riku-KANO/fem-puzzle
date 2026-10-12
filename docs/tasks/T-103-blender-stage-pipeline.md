@@ -6,6 +6,7 @@ phase: 0
 depends: [T-002]
 owns:
   - tools/blender/**
+  - '!tools/blender/assets/**'   # T-307 builds environment assets in parallel
   - stages/**
   - scripts/build-stages.sh
 verify:

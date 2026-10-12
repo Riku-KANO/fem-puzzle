@@ -6,6 +6,7 @@ phase: 0
 depends: [T-002]
 owns:
   - apps/web/**
+  - '!apps/web/public/assets/**'   # T-307 exports glTF assets here in parallel
 verify:
   - pnpm --filter @stress-carve/web typecheck
   - pnpm --filter @stress-carve/web test
