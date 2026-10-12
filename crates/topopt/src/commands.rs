@@ -265,8 +265,8 @@ fn finish(args: &CalibrateArgs, path: &Path, old: &str, value: &serde_json::Valu
     Ok(())
 }
 
-/// `topopt eval`.
-pub fn eval(paths: &[std::path::PathBuf]) -> Result<()> {
+/// `topopt judge`.
+pub fn judge(paths: &[std::path::PathBuf]) -> Result<()> {
     for p in paths {
         let model = Model::from_json(&read(p)?)?;
         let id = &model.stage.id;

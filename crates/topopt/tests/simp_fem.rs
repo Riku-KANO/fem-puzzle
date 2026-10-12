@@ -96,7 +96,12 @@ fn mbb_plate_converges_with_decreasing_compliance_and_exact_volume() {
 
     // volume constraint on the physical densities
     for r in h {
-        assert!((r.volume - volfrac).abs() < 1e-3, "iter {}: {}", r.iter, r.volume);
+        assert!(
+            (r.volume - volfrac).abs() < 1e-3,
+            "iter {}: {}",
+            r.iter,
+            r.volume
+        );
     }
     let nd = model.layout.domain_count() as f64;
     let v: f64 = res.rho.iter().sum::<f64>() / nd;

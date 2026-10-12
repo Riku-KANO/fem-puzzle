@@ -47,11 +47,14 @@ impl Model {
             .collect();
         load_cells.sort_unstable();
         load_cells.dedup();
+        // Supported cells come from the contract (`Stage::supported_cells`, the connectivity
+        // source of stage-format.md); keep from `Problem` (= `Stage::effective_keep`).
+        let supported = stage.supported_cells()?;
         let layout = Layout {
             dims: Dims::new(g.nx, g.ny, g.nz),
             domain: problem.domain.clone(),
             keep: problem.keep.clone(),
-            supported: problem.supported.clone(),
+            supported,
             load_cells,
             block,
         };
@@ -363,8 +366,14 @@ pub fn verify_calibrated(model: &Model) -> Result<Judgement> {
     if (0..n).any(|e| solid[e] && !model.layout.domain[e]) {
         return err("benchmark has material outside the design domain");
     }
+    if let Some(e) = (0..n).find(|&e| model.layout.keep[e] && !solid[e]) {
+        let [x, y, z] = model.layout.dims.coords(e);
+        return err(format!(
+            "benchmark lacks keep cell ({x}, {y}, {z}) (keep/support rules changed?)"
+        ));
+    }
     if !design::is_valid(&model.layout, &solid) {
-        return err("benchmark design breaks the connectivity rules");
+        return err("benchmark leaves a load or keep cell unconnected to a support");
     }
     let count = solid.iter().filter(|&&x| x).count();
     let volume = count as f64 / model.layout.domain_count() as f64;

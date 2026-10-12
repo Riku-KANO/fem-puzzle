@@ -12,7 +12,7 @@ fn main() {
         }
         Command::Run(a) => commands::run(&a),
         Command::Calibrate(a) => commands::calibrate(&a),
-        Command::Eval(paths) => commands::eval(&paths),
+        Command::Judge(paths) => commands::judge(&paths),
     });
     if let Err(e) = result {
         eprintln!("topopt: {e}");

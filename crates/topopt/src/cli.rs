@@ -17,7 +17,7 @@ USAGE:
       --cache   directory of previously calibrated stages (same file names): reused when
                 only calibrated fields differ and the stored benchmark re-verifies
       --force   ignore the cache
-  topopt eval <stage.json>...
+  topopt judge <stage.json>...
       Judge the stored benchmark design and the full block under the stage's loads.
 ";
 
@@ -51,7 +51,7 @@ pub struct CalibrateArgs {
 pub enum Command {
     Run(RunArgs),
     Calibrate(CalibrateArgs),
-    Eval(Vec<PathBuf>),
+    Judge(Vec<PathBuf>),
     Help,
 }
 
@@ -152,11 +152,11 @@ pub fn parse(args: &[String]) -> Result<Command> {
                 quiet,
             }))
         }
-        "eval" => {
+        "judge" => {
             if files.is_empty() {
-                return err("eval needs at least one stage file");
+                return err("judge needs at least one stage file");
             }
-            Ok(Command::Eval(files))
+            Ok(Command::Judge(files))
         }
         "help" | "-h" | "--help" => Ok(Command::Help),
         other => err(format!("unknown command {other:?}")),
