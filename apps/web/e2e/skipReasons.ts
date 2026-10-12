@@ -9,7 +9,8 @@ export default class SkipReasons implements Reporter {
 
   onTestEnd(test: TestCase, result: TestResult): void {
     if (result.status !== 'skipped') return;
-    const reason = test.annotations.find((a) => a.type === 'skip')?.description ?? 'no reason given';
+    const note = test.annotations.find((a) => a.type === 'skip' || a.type === 'fixme');
+    const reason = `${note?.type === 'fixme' ? '[fixme] ' : ''}${note?.description ?? 'no reason given'}`;
     this.skipped.push(`  - ${test.titlePath().slice(1).join(' › ')}: ${reason}`);
   }
 
