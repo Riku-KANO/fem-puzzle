@@ -4,6 +4,7 @@
   import { onMount } from 'svelte';
   import type { BrushSize } from './game/brush.ts';
   import { startGame, type GameSession } from './game/boot.ts';
+  import { submitGate } from './game/judge/index.ts';
   import { listStages, pickInitialStage } from './game/stages.ts';
   import ThinWallBadge from './game/thickness/ThinWallBadge.svelte';
   import { ThinWallHud } from './game/thickness/thinWallHud.svelte.ts';
@@ -16,9 +17,13 @@
   import StagePanel from './ui/StagePanel.svelte';
   import Toast from './ui/Toast.svelte';
   import Toolbar from './ui/Toolbar.svelte';
+  import ResultScreen from './ui/result/ResultScreen.svelte';
+  import { ResultSession } from './ui/result/resultSession.svelte.ts';
 
   const { stage } = pickInitialStage(listStages(), window.location.search);
   const hud = new HudState();
+  const result = new ResultSession(); // T-304: result.onClear = (c) => progress.recordClear(c)
+  const gate = $derived(submitGate(hud));
   const thinWalls = new ThinWallHud();
   let viewport: HTMLDivElement;
   let game: GameSession | null = null;
@@ -29,6 +34,7 @@
     game.scene.loadTest.onStatus = (s) => (loadTest = s);
     const detachThinWalls = thinWalls.attach(game.scene);
     return () => {
+      result.dispose();
       detachThinWalls();
       game?.dispose();
       game = null;
@@ -47,6 +53,11 @@
       hud.viewMode = mode; // section / X-ray rendering: T-303
     },
     loadTest: () => game?.scene.loadTest.toggle({ current: hud.resultCurrent }),
+    submit: () => {
+      if (!game) return;
+      game.scene.loadTest.stop(); // the result screen shows the real (undeformed) part
+      result.open(game, hud);
+    },
   };
 
   function onKeydown(ev: KeyboardEvent): void {
@@ -80,6 +91,11 @@
       <StagePanel title={stage.title} world={stage.world} targets={stage.targets} {hud} />
       <ThinWallBadge hud={thinWalls} />
     </div>
+    {#if result.submission}
+      <div class="result-slot">
+        <ResultScreen session={result} targets={stage.targets} current={hud.resultCurrent} />
+      </div>
+    {/if}
     <div class="right">
       <SidePanel {hud} onPalette={actions.palette} onViewMode={actions.viewMode} />
     </div>
@@ -94,6 +110,10 @@
         canLoadTest={hud.maxUtilization !== null}
         loadTestActive={loadTest.state !== 'idle'}
         onLoadTest={actions.loadTest}
+        canSubmit={gate.enabled && !result.submission}
+        submitTitle={gate.reason}
+        submitHint={gate.problem}
+        onSubmit={actions.submit}
       />
     </div>
   </div>
@@ -125,6 +145,13 @@
     position: absolute;
     top: 16px;
     left: 16px;
+  }
+  .result-slot {
+    /* over the stage panel (the card repeats its volume / targets), leaves the model visible */
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    z-index: 1;
   }
   .right {
     position: absolute;

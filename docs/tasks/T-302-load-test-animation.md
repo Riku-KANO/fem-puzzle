@@ -85,7 +85,7 @@ Pressing Space again ends the show at once. Any carve, undo or debris change als
 - Shader anchors.
 
 **Measurements** (Claude Browser pane, `vite` from this worktree on :5181, M-series Mac, Chrome, canvas 2048×1536 @ dpr 2):
-- W2-01 with two 6-deep notches (u_max 163 %, 32 over-stressed elements → 32 chips + 1 falling piece, full 7.8 s show): **451 frames, mean 60.0 fps, p95 frame 17.6 ms, worst 17.7 ms**.
+- W2-01 with two 6-deep notches (u_max 163 %, 32 over-stressed elements → 32 chips + 1 falling piece, full 7.5 s show, measured just before the 0.3 s lift pre-phase was added): **451 frames, mean 60.0 fps, p95 frame 17.6 ms, worst 17.7 ms**.
 - `LoadTest.update`: mean 0.04 ms, p95 0.28 ms, max 0.8 ms (the break frame: chunk rebuild + connectivity). `renderer.render` CPU: mean 0.13 ms.
 - Intact W2-01 at ×50 and W2-02 at ×25 bend visibly, with the arrows riding the deflection.
 - Space with the toolbar button focused toggles exactly once. No console errors.

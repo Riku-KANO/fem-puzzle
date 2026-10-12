@@ -13,9 +13,27 @@
     canLoadTest?: boolean;
     loadTestActive?: boolean;
     onLoadTest?: () => void;
+    /** submit gate (T-301: game/judge `submitGate`) */
+    canSubmit?: boolean;
+    submitTitle?: string;
+    /** a blocking reason shown next to the button (e.g. 構造が安定していません) */
+    submitHint?: string | null;
+    onSubmit?: () => void;
   }
 
-  let { hud, onBrush, onUndo, onRedo, canLoadTest = false, loadTestActive = false, onLoadTest }: Props = $props();
+  let {
+    hud,
+    onBrush,
+    onUndo,
+    onRedo,
+    canLoadTest = false,
+    loadTestActive = false,
+    onLoadTest,
+    canSubmit = false,
+    submitTitle = '提出',
+    submitHint = null,
+    onSubmit,
+  }: Props = $props();
 
   const brushLabel = (s: BrushSize) => `${s}×${s}`;
 </script>
@@ -46,7 +64,8 @@
   >
     載荷テスト
   </button>
-  <button class="primary" disabled title="提出(準備中)">提出</button>
+  {#if submitHint}<span class="hint" role="status">{submitHint}</span>{/if}
+  <button class="primary" disabled={!canSubmit} title={submitTitle} onclick={() => onSubmit?.()}>提出</button>
 </nav>
 
 <style>
@@ -73,6 +92,11 @@
     align-self: stretch;
     background: #333843;
     margin: 0 0.2rem;
+  }
+  .hint {
+    font-size: 0.72rem;
+    color: #ffb4b4;
+    white-space: nowrap;
   }
   .primary:not(:disabled) {
     background: var(--accent);
