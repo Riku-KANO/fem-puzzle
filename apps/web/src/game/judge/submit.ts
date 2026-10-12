@@ -17,8 +17,8 @@ export interface SubmitGate {
   enabled: boolean;
   /** why it is disabled (tooltip / hint), or what submitting does */
   reason: string;
-  /** a blocking problem worth showing next to the button (not just "wait") */
-  problem: boolean;
+  /** short text of a blocking problem, shown next to the button (null when just waiting) */
+  problem: string | null;
 }
 
 export const SUBMIT_MESSAGES = {
@@ -31,11 +31,11 @@ export const SUBMIT_MESSAGES = {
 
 /** Submit is enabled only for a converged result describing exactly the current solid set. */
 export function submitGate(h: SubmitGateInput): SubmitGate {
-  if (h.error) return { enabled: false, reason: SUBMIT_MESSAGES.error, problem: true };
-  if (h.solving) return { enabled: false, reason: SUBMIT_MESSAGES.solving, problem: false };
-  if (!h.resultCurrent) return { enabled: false, reason: SUBMIT_MESSAGES.waiting, problem: false };
-  if (!h.converged) return { enabled: false, reason: SUBMIT_MESSAGES.unstable, problem: true };
-  return { enabled: true, reason: SUBMIT_MESSAGES.ready, problem: false };
+  if (h.error) return { enabled: false, reason: SUBMIT_MESSAGES.error, problem: '解析エラー' };
+  if (h.solving) return { enabled: false, reason: SUBMIT_MESSAGES.solving, problem: null };
+  if (!h.resultCurrent) return { enabled: false, reason: SUBMIT_MESSAGES.waiting, problem: null };
+  if (!h.converged) return { enabled: false, reason: SUBMIT_MESSAGES.unstable, problem: JUDGE_MESSAGES.unstable };
+  return { enabled: true, reason: SUBMIT_MESSAGES.ready, problem: null };
 }
 
 /** Record of a passed submission (T-304 stores best stars / volume / design per stage). */

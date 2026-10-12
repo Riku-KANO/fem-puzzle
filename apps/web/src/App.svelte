@@ -100,7 +100,7 @@
         onRedo={actions.redo}
         canSubmit={gate.enabled && !result.submission}
         submitTitle={gate.reason}
-        submitHint={gate.problem ? gate.reason : null}
+        submitHint={gate.problem}
         onSubmit={actions.submit}
       />
     </div>

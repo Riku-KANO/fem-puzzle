@@ -20,17 +20,17 @@ const gate = (over: Partial<SubmitGateInput> = {}): SubmitGateInput => ({
 
 describe('submitGate', () => {
   it('is open only for a converged result of the current design', () => {
-    expect(submitGate(gate())).toEqual({ enabled: true, reason: SUBMIT_MESSAGES.ready, problem: false });
-    expect(submitGate(gate({ resultCurrent: false }))).toMatchObject({ enabled: false, problem: false });
+    expect(submitGate(gate())).toEqual({ enabled: true, reason: SUBMIT_MESSAGES.ready, problem: null });
+    expect(submitGate(gate({ resultCurrent: false }))).toMatchObject({ enabled: false, problem: null });
     expect(submitGate(gate({ solving: true }))).toMatchObject({ enabled: false, reason: SUBMIT_MESSAGES.solving });
-    expect(submitGate(gate({ error: 'boom' }))).toMatchObject({ enabled: false, problem: true });
+    expect(submitGate(gate({ error: 'boom' }))).toMatchObject({ enabled: false, problem: '解析エラー' });
   });
 
   it('a stale but converged result does not open it; a current unconverged one explains why', () => {
     expect(submitGate(gate({ resultCurrent: false, converged: true })).enabled).toBe(false);
     const g = submitGate(gate({ converged: false }));
     expect(g.enabled).toBe(false);
-    expect(g.problem).toBe(true);
+    expect(g.problem).toBe('構造が安定していません');
     expect(g.reason).toContain('構造が安定していません');
   });
 });

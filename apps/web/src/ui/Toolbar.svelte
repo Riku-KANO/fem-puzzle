@@ -73,6 +73,7 @@
   .hint {
     font-size: 0.72rem;
     color: #ffb4b4;
+    white-space: nowrap;
   }
   .primary:not(:disabled) {
     background: var(--accent);
