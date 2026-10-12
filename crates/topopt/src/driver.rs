@@ -129,6 +129,8 @@ impl Analysis for FemAnalysis {
 pub struct Judgement {
     /// Max over load cases of the judged max utilisation.
     pub max_utilization: f64,
+    /// Max over load cases of the load-point displacement (m).
+    pub load_displacement: f64,
     pub loads_connected: bool,
     pub floating: usize,
     pub converged: bool,
@@ -171,8 +173,12 @@ impl Judge {
         if !max_utilization.is_finite() {
             return err("non-finite utilisation");
         }
+        let load_displacement = (0..ncases)
+            .map(|c| self.solver.load_displacement(c))
+            .fold(0.0, f64::max);
         Ok(Judgement {
             max_utilization,
+            load_displacement,
             loads_connected: self.solver.loads_connected(),
             floating: self.solver.floating().len(),
             converged: self.solver.converged(),
@@ -398,6 +404,14 @@ pub fn verify_calibrated(model: &Model) -> Result<Judgement> {
     }
     if bench.max_utilization > 1.0 || !bench.loads_connected {
         return err("benchmark design fails the strength rule");
+    }
+    if let Some(d) = s.max_displacement
+        && bench.load_displacement > d
+    {
+        return err(format!(
+            "benchmark load displacement {:.3e} m exceeds maxDisplacement {d:e} m",
+            bench.load_displacement
+        ));
     }
     Ok(bench)
 }

@@ -247,6 +247,13 @@ fn calibrate_one(args: &CalibrateArgs, path: &Path) -> Result<()> {
             cal.full_block.max_utilization
         );
     }
+    if let Some(d) = model.stage.max_displacement {
+        let bench = driver::verify_calibrated(&Model::from_json(&stagejson::to_text(&value))?);
+        if let Err(e) = bench {
+            return Err(Error(format!("{e}; raise maxDisplacement or drop it")));
+        }
+        println!("{id}: benchmark meets maxDisplacement {d:e} m");
+    }
     finish(args, path, &text, &value)
 }
 
