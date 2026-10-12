@@ -17,8 +17,8 @@ const BACKGROUND: [number, number, number] = [0x15, 0x17, 0x1c];
  * without hash routing on the same stage (T-304 rewrites it to the hash and keeps other
  * params). `?backend=` selects the solver backend (T-205).
  */
-export function stageUrl(stageId: string, backend: BackendId): string {
-  return `/?backend=${backend}&stage=${stageId}#/stage/${stageId}`;
+export function stageUrl(stageId: string, backend: BackendId, query = ''): string {
+  return `/?backend=${backend}&stage=${stageId}${query ? `&${query}` : ''}#/stage/${stageId}`;
 }
 
 /** Title screen (T-304 `#/`); the router keeps `?backend=` for every stage opened from it. */
@@ -78,8 +78,9 @@ export function trackErrors(page: Page): string[] {
 }
 
 /** Open a stage and wait until the solver has answered the initial `init`. */
-export async function openStage(page: Page, stageId: string, backend: BackendId): Promise<Snapshot> {
-  await page.goto(stageUrl(stageId, backend));
+/** `query`: extra URL parameters, e.g. `debris=physics` (T-310). */
+export async function openStage(page: Page, stageId: string, backend: BackendId, query = ''): Promise<Snapshot> {
+  await page.goto(stageUrl(stageId, backend, query));
   return waitForStage(page, stageId);
 }
 
