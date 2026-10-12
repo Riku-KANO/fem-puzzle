@@ -16,6 +16,8 @@
     type StageClear,
   } from './game/progress/index.ts';
   import { listStages } from './game/stages.ts';
+  import ThinWallBadge from './game/thickness/ThinWallBadge.svelte';
+  import { ThinWallHud } from './game/thickness/thinWallHud.svelte.ts';
   import type { PaletteId } from './render/colormap.ts';
   import { HudState, type ViewMode } from './ui/hudState.svelte.ts';
   import { shortcutFor } from './ui/shortcuts.ts';
@@ -39,19 +41,25 @@
   });
   const stage = $derived((entry ?? catalogue.stages[0]!).stage);
   const hud = new HudState();
+  const thinWalls = new ThinWallHud();
   let viewport: HTMLDivElement;
   let game = $state.raw<GameSession | null>(null);
   let opened = $state.raw<{ status: ResumeStatus }>({ status: 'fresh' });
   const runner = new StageRunner(progress, (s) => startGame(viewport, s, hud, hud.palette), browserRunnerEnv(window));
 
+  /** Make `session` the current game (after open / restart). */
+  function bindSession(session: GameSession): void {
+    game = session;
+    opened = { status: runner.resume };
+    thinWalls.attach(session.scene);
+  }
+
   $effect(() => {
     const current = entry;
     if (!current) return;
-    untrack(() => {
-      game = runner.open(current.stage);
-      opened = { status: runner.resume };
-    });
+    untrack(() => bindSession(runner.open(current.stage)));
     return () => {
+      thinWalls.detach();
       runner.close();
       game = null;
     };
@@ -77,8 +85,9 @@
     // Campaign (T-304). `clear`/`next`/`select` are the hooks for the result screen (T-301).
     select: () => router.navigate({ kind: 'select', world: stage.world }),
     restart: () => {
-      game = runner.restart();
-      opened = { status: runner.resume };
+      thinWalls.detach();
+      const session = runner.restart();
+      if (session) bindSession(session);
     },
     clear: (c: StageClear) => progress.recordClear(c),
     next: () => {
@@ -117,6 +126,7 @@
     <div class="top-left">
       <GameMenu resume={opened} onSelect={actions.select} onRestart={actions.restart} />
       <StagePanel title={stage.title} world={stage.world} targets={stage.targets} {hud} />
+      <ThinWallBadge hud={thinWalls} />
     </div>
     <div class="right">
       <SidePanel {hud} onPalette={actions.palette} onViewMode={actions.viewMode} />

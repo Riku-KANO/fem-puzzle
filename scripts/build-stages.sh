@@ -59,9 +59,16 @@ export_all() {
 # >>> T-203 hook: chain topopt calibrate here
 # Runs after export_all on the freshly exported dir ($1, a temp dir in every mode), before
 # anything is copied into or compared with stages/. Must be deterministic so --check holds.
+#
+# topopt (crates/topopt/README.md) scales loads and writes targets/benchmark. It reuses the
+# committed stages/<id>.json as a cache when only calibrated data differs (one verification
+# solve per stage); TOPOPT_FORCE=1 reruns the full SIMP sweep (e.g. after a solver change).
 calibrate_hook() {
   local out="$1"
-  : "$out" # no-op until T-203 (topopt calibrate) lands
+  local -a flags=(--write --quiet --cache "$ROOT/stages")
+  [ "${TOPOPT_FORCE:-0}" = 1 ] && flags+=(--force)
+  cargo run --release -q --manifest-path "$ROOT/Cargo.toml" -p topopt -- \
+    calibrate "${flags[@]}" "$out"/*.json || die "topopt calibrate failed"
 }
 # <<< T-203 hook
 
