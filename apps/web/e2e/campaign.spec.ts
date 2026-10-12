@@ -100,7 +100,7 @@ test.describe('campaign (mock backend)', () => {
     expect(s.solidCount).toBe(slot.noStars.solidCount);
     await submitButton(page).click();
     await expect(card).toContainText('合格(星なし)');
-    // let the autosave run first: leaving sooner hides 途中 on the select screen (fixme below)
+    // (waiting for the autosave is no longer required since T-315 flushes it on route change)
     await expect.poll(() => savedCarve(page, STAGE_ID), { message: 'carve autosaved' }).not.toBeNull();
     await card.getByRole('button', { name: 'ステージ選択へ' }).click();
     await expectScreen(page, 'select');
