@@ -120,9 +120,10 @@ change, and neither did `operator.rs`, `pcg.rs`, `precond.rs` or `hex8.rs`.
   It matters for topopt throughput, not for players. Verify with
   `cargo run -p fem-bench --release -- --grid 40x12x12 --precond both`: Jacobi warm should
   return to about 100 ms on M5 Pro. Then run `node scripts/bench-gate.mjs --record`.
-- Measure in real browsers: T-205 was asked (by message) to log per-carve timings as
-  browser | OS/CPU | stage | precond/levels | load ms | warm median/max ms (it) |
-  worker round-trip ms. Fold these into docs/perf-results.md.
+- Measure in real browsers. Chrome is done: T-205's in-browser timings (commit `f4e9486`)
+  are folded into docs/perf-results.md. W4-sized warm is 23 ms in-worker, and RTT adds only
+  0.1–0.4 ms. **Safari and Firefox are still open**; they need a human run, because the
+  agents only have Chromium.
 - Multi-load-case scenario: W4/W5 stages have two cases, and the bench uses one. The
   expected cost is about 2×; the headroom covers it. A `--cases 2` option would make this
   explicit.
