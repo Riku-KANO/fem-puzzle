@@ -1,0 +1,269 @@
+{
+  "conventions": "see tools/blender/assets/README.md",
+  "files": {
+    "crack_decal.png": {
+      "bytes": 22444,
+      "size": [
+        512,
+        512
+      ],
+      "use": "dark cracks, straight alpha, centred; project onto over-stressed faces"
+    },
+    "debris.glb": {
+      "asset": "debris",
+      "bytes": 26344,
+      "density": 2700.0,
+      "frame": "each node is a separate piece at the origin; origin = volume centroid (chips)",
+      "pieces": {
+        "chip_0": {
+          "convex": true,
+          "halfExtents": [
+            0.00327,
+            0.00308,
+            0.00349
+          ],
+          "mass": 0.0002983,
+          "volume": 1.105e-07
+        },
+        "chip_1": {
+          "convex": true,
+          "halfExtents": [
+            0.00438,
+            0.00169,
+            0.00326
+          ],
+          "mass": 0.0002354,
+          "volume": 8.717e-08
+        },
+        "chip_2": {
+          "convex": true,
+          "halfExtents": [
+            0.00528,
+            0.002,
+            0.00215
+          ],
+          "mass": 0.0001759,
+          "volume": 6.515e-08
+        },
+        "chip_3": {
+          "convex": true,
+          "halfExtents": [
+            0.00292,
+            0.00241,
+            0.00278
+          ],
+          "mass": 0.000227,
+          "volume": 8.409e-08
+        },
+        "swarf_0": {
+          "convex": false,
+          "halfExtents": [
+            0.00442,
+            0.00272,
+            0.00415
+          ]
+        }
+      }
+    },
+    "jig_clamp.glb": {
+      "bounds": [
+        [
+          -0.0605,
+          -0.004,
+          -0.0605
+        ],
+        [
+          0.0605,
+          0.054,
+          0.0605
+        ]
+      ],
+      "bytes": 62612,
+      "depth": 0.054,
+      "faces": 398,
+      "frame": "origin = contact patch centre; +Y = outward face normal; body in y >= 0",
+      "kind": "support",
+      "nodes": [
+        "clamp_block",
+        "clamp_plate"
+      ],
+      "nominalPatch": [
+        0.08,
+        0.08
+      ],
+      "scaleXZ": "(patch + 0.02) / 0.10 per axis",
+      "use": "fixed face (fix xyz, whole face or large patch)"
+    },
+    "jig_cylinder.glb": {
+      "animate": "cylinder_rod.position.y",
+      "bounds": [
+        [
+          -0.0329,
+          0.0,
+          -0.0329
+        ],
+        [
+          0.0329,
+          0.244,
+          0.053
+        ]
+      ],
+      "bytes": 55388,
+      "faces": 360,
+      "force": "push",
+      "frame": "origin = contact patch centre; -Y = force direction; body in y >= 0 (0 .. 0.245)",
+      "kind": "load",
+      "nodes": [
+        "cylinder_body",
+        "cylinder_rod"
+      ],
+      "padDiameter": 0.032,
+      "rodTravel": 0.04
+    },
+    "jig_pin.glb": {
+      "bounds": [
+        [
+          -0.045,
+          0.0,
+          -0.0375
+        ],
+        [
+          0.045,
+          0.06,
+          0.0375
+        ]
+      ],
+      "bytes": 25856,
+      "depth": 0.06,
+      "faces": 156,
+      "frame": "origin = contact patch centre; +Y = outward face normal; pin axis = local X",
+      "kind": "support",
+      "nodes": [
+        "pin_body",
+        "pin_pin"
+      ],
+      "nominalPatch": [
+        0.08,
+        0.01
+      ],
+      "scaleX": "patch length / 0.08",
+      "use": "pin (fix xyz on a few cells)"
+    },
+    "jig_riser.glb": {
+      "bounds": [
+        [
+          -0.035,
+          0.0,
+          -0.035
+        ],
+        [
+          0.035,
+          1.0,
+          0.035
+        ]
+      ],
+      "bytes": 18900,
+      "faces": 111,
+      "frame": "origin on the bench top; riser_column spans y in [0, 1]: set its scale.y to the height",
+      "kind": "stand",
+      "nodes": [
+        "riser_column",
+        "riser_foot"
+      ],
+      "use": "column from the bench up to a support jig"
+    },
+    "jig_roller.glb": {
+      "bounds": [
+        [
+          -0.045,
+          0.0,
+          -0.04
+        ],
+        [
+          0.045,
+          0.06,
+          0.04
+        ]
+      ],
+      "bytes": 37356,
+      "depth": 0.06,
+      "faces": 228,
+      "frame": "origin = contact patch centre; +Y = outward face normal; pin axis = local X, rolls along Z",
+      "kind": "support",
+      "nodes": [
+        "roller_body",
+        "roller_pin",
+        "roller_rollers"
+      ],
+      "nominalPatch": [
+        0.08,
+        0.01
+      ],
+      "scaleX": "patch length / 0.08",
+      "use": "roller (fix is a strict subset of xyz)"
+    },
+    "jig_weight.glb": {
+      "animate": "weight_stack.position.y",
+      "bounds": [
+        [
+          -0.033,
+          -0.123,
+          -0.033
+        ],
+        [
+          0.033,
+          0.0,
+          0.033
+        ]
+      ],
+      "bytes": 48836,
+      "faces": 360,
+      "force": "pull",
+      "frame": "origin = contact patch centre (underside); -Y = force direction (down); hangs in y <= 0",
+      "kind": "load",
+      "nodes": [
+        "weight_hook",
+        "weight_stack"
+      ],
+      "saddle": [
+        0.026,
+        0.026
+      ]
+    },
+    "workbench.glb": {
+      "bounds": [
+        [
+          -0.8,
+          -0.93,
+          -0.4
+        ],
+        [
+          0.8,
+          0.1,
+          0.484
+        ]
+      ],
+      "bytes": 126680,
+      "faces": 1514
+    },
+    "workshop.glb": {
+      "bounds": [
+        [
+          -2.15,
+          -0.93,
+          -0.5506
+        ],
+        [
+          2.0,
+          1.8,
+          2.6
+        ]
+      ],
+      "bytes": 376348,
+      "faces": 5478
+    }
+  },
+  "generator": "tools/blender/assets/build.sh (T-307)",
+  "units": "metres, Y-up (glTF)",
+  "version": 1
+}
