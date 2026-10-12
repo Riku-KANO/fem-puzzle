@@ -1,7 +1,7 @@
 ---
 id: T-311
 title: Web shell review fixes — history/debris, host cancel tests, HUD reset, context loss
-status: review
+status: done
 phase: 1
 depends: [T-102]
 owns:
