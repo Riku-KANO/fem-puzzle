@@ -73,3 +73,17 @@ pub fn cantilever([nx, ny, nz]: [usize; 3], total_force: f64) -> Stage {
 pub fn max_abs(v: &[f64]) -> f64 {
     v.iter().fold(0.0f64, |m, x| m.max(x.abs()))
 }
+
+/// Stage-like cantilever (same as `examples/cantilever.rs`): clamped at x-, total force
+/// `total_force` downwards on the top edge of the tip (`x = nx-1, y = ny-1`, all z).
+pub fn tip_edge_cantilever([nx, ny, nz]: [usize; 3], total_force: f64) -> Stage {
+    stage(
+        [nx, ny, nz],
+        &vec![true; nx * ny * nz],
+        vec![clamp(Face::XNeg)],
+        vec![Load {
+            cells: (0..nz).map(|z| [nx - 1, ny - 1, z]).collect(),
+            force: [0.0, -total_force, 0.0],
+        }],
+    )
+}

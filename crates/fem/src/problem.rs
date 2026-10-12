@@ -17,6 +17,7 @@ pub struct Material {
 /// One load case: nodal forces plus the cells the loads were applied to.
 #[derive(Debug, Clone, PartialEq)]
 pub struct LoadCase {
+    /// Case name (`"default"` for a stage without `loadCases`).
     pub name: String,
     /// Nodal force per DOF (N), length `3 * nodes`.
     pub force: Vec<f64>,
@@ -27,7 +28,9 @@ pub struct LoadCase {
 /// A voxel FEM problem: grid, material, design domain, supports and load cases.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Problem {
+    /// Voxel grid (`h` = stage `voxelSize`).
     pub grid: Grid,
+    /// Solid material (`E₀`, `ν`, allowable stress).
     pub material: Material,
     /// Per element: initially solid (the design domain).
     pub domain: Vec<bool>,

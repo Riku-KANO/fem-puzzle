@@ -39,7 +39,9 @@ pub struct SolverOptions {
     pub tol: f64,
     /// Iteration cap per load case.
     pub max_iters: usize,
+    /// Preconditioner for PCG.
     pub preconditioner: Preconditioner,
+    /// Player (0/1 solid set) or optimiser (SIMP densities) mode.
     pub mode: Mode,
 }
 
@@ -154,10 +156,12 @@ impl Solver {
         s
     }
 
+    /// The problem this solver was built for.
     pub fn problem(&self) -> &Problem {
         &self.problem
     }
 
+    /// The options this solver was built with.
     pub fn options(&self) -> &SolverOptions {
         &self.opts
     }

@@ -19,8 +19,11 @@ pub const HEX8_NODE_OFFSETS: [[usize; 3]; 8] = [
 /// A grid of `nx × ny × nz` cubic voxels of edge `h` (m), origin at the min corner.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Grid {
+    /// Elements along x.
     pub nx: usize,
+    /// Elements along y (up).
     pub ny: usize,
+    /// Elements along z.
     pub nz: usize,
     /// Voxel edge length (m).
     pub h: f64,

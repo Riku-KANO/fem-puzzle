@@ -13,9 +13,11 @@ use crate::hex8::{self, Ke};
 /// elements' 24 DOFs ([`Grid::element_dofs`] order), `M = diag(free)`.
 #[derive(Debug, Clone, Copy)]
 pub struct OperatorView<'a> {
-    /// Elements per axis.
+    /// Elements along x.
     pub nx: usize,
+    /// Elements along y.
     pub ny: usize,
+    /// Elements along z.
     pub nz: usize,
     /// Reference element stiffness `Ke1` (24×24 row-major, `E = 1`, `h = 1`).
     pub ke1: &'a Ke,
@@ -95,6 +97,7 @@ impl Operator {
         }
     }
 
+    /// The element grid (with the real voxel size).
     pub fn grid(&self) -> &Grid {
         &self.grid
     }
