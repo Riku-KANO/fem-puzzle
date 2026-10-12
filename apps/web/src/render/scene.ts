@@ -48,6 +48,8 @@ export class StageScene implements ViewPort {
   private readonly resizeObserver: ResizeObserver;
   private targetGoal: THREE.Vector3 | null = null;
   private readonly reducedMotion: boolean;
+  private readonly raycaster = new THREE.Raycaster();
+  private readonly ndc = new THREE.Vector2();
 
   constructor(
     private readonly host: HTMLElement,
@@ -147,14 +149,10 @@ export class StageScene implements ViewPort {
   /** Voxel under a client-space point, or null. */
   pick(clientX: number, clientY: number): VoxelHit | null {
     const rect = this.canvas.getBoundingClientRect();
-    const ndc = new THREE.Vector2(
-      ((clientX - rect.left) / rect.width) * 2 - 1,
-      -((clientY - rect.top) / rect.height) * 2 + 1,
-    );
-    const ray = new THREE.Raycaster();
-    ray.setFromCamera(ndc, this.camera);
-    const o = ray.ray.origin;
-    const d = ray.ray.direction;
+    this.ndc.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+    this.raycaster.setFromCamera(this.ndc, this.camera);
+    const o = this.raycaster.ray.origin;
+    const d = this.raycaster.ray.direction;
     const h = this.h;
     return raycastGrid(this.state.grid, [o.x / h, o.y / h, o.z / h], [d.x, d.y, d.z], this.pickFilter);
   }
