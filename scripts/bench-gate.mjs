@@ -18,6 +18,8 @@
 //   3. absolute `limits` (e.g. WASM warm carve on 40×12×12 ≤ 500 ms), on any machine;
 //   4. regression vs `baseline`: iteration counts everywhere (deterministic), times only
 //      when the CPU model equals the baseline's (other machines are not comparable).
+// A row that fails a time check (3 or 4) is re-measured once and judged on the faster of
+// the two runs, so a burst of load from other processes does not fail the gate.
 // Exit codes: 0 pass, 1 budget violation, 2 harness error (bench failed to run, bad JSON).
 
 import { spawnSync } from 'node:child_process';
@@ -87,24 +89,24 @@ function wasmStaleness() {
   return statSync(PKG_WASM).mtimeMs < src;
 }
 
-function runNative() {
-  console.log('perf-gate: native bench (cargo run -p fem-bench --release -- --json) …');
-  const r = run('cargo', ['run', '--quiet', '-p', 'fem-bench', '--release', '--', '--json'], { capture: true });
+/** Run the native bench (`extra` = scenario filters) and write its JSON report to `out`. */
+function runNative(extra = [], out = ARTIFACT.native) {
+  const r = run('cargo', ['run', '--quiet', '-p', 'fem-bench', '--release', '--', '--json', ...extra], {
+    capture: true,
+  });
   writeFileSync(join(OUT_DIR, 'native.log'), r.stderr ?? '');
   if (r.status !== 0 && !r.stdout?.trim().startsWith('{')) {
     process.stderr.write((r.stderr ?? '').split('\n').slice(-30).join('\n'));
     throw new HarnessError(`fem-bench exited with ${r.status} (log: .artifacts/bench/native.log)`);
   }
-  writeFileSync(ARTIFACT.native, r.stdout);
+  writeFileSync(out, r.stdout);
 }
 
-function runWasm() {
+/** Run the WASM bench (`extra` = scenario filters) and write its JSON report to `out`. */
+function runWasm(extra = [], out = ARTIFACT.wasm) {
   if (!existsSync(PKG_WASM))
     throw new HarnessError('crates/fem-wasm/pkg is missing — run `pnpm build:wasm` first');
-  if (wasmStaleness())
-    console.log('perf-gate: WARNING crates/fem-wasm/pkg is older than the Rust sources — run `pnpm build:wasm`');
-  console.log('perf-gate: wasm bench (node scripts/bench-wasm.mjs) …');
-  const r = run(process.execPath, [join(ROOT, 'scripts/bench-wasm.mjs'), '--quiet', '--out', ARTIFACT.wasm], {
+  const r = run(process.execPath, [join(ROOT, 'scripts/bench-wasm.mjs'), '--quiet', '--out', out, ...extra], {
     capture: true,
   });
   writeFileSync(join(OUT_DIR, 'wasm.log'), `${r.stdout ?? ''}${r.stderr ?? ''}`);
@@ -113,6 +115,32 @@ function runWasm() {
     process.stderr.write((r.stderr ?? '').split('\n').slice(-30).join('\n'));
     throw new HarnessError(`bench-wasm exited with ${r.status} (log: .artifacts/bench/wasm.log)`);
   }
+}
+
+const RUN = { native: runNative, wasm: runWasm };
+const TIME_FIELDS = ['setupMs', 'coldMs', 'warmMedianMs', 'warmMaxMs', 'postMs'];
+
+/**
+ * Re-run the scenarios of `rows` once and keep the faster time of the two runs per metric.
+ * A slowdown caused by other processes on the machine rarely repeats; a real one does.
+ * Iteration counts are deterministic and are not touched. Updates `reports` and the
+ * artifacts in place.
+ */
+function remeasure(reports, rows) {
+  for (const row of rows) {
+    const rep = reports.find((x) => x.target === row.target);
+    const orig = rep.results.find((x) => x.grid === row.grid && x.requested === row.requested);
+    const out = join(OUT_DIR, `${row.target}-recheck.json`);
+    RUN[row.target](['--grid', row.grid, '--precond', row.requested], out);
+    const again = JSON.parse(readFileSync(out, 'utf8')).results.find(
+      (x) => x.grid === row.grid && x.requested === row.requested,
+    );
+    if (!again) throw new HarnessError(`re-measure of ${row.target} ${row.grid} ${row.requested} produced no result`);
+    for (const f of TIME_FIELDS) orig[f] = Math.min(orig[f], again[f]);
+    orig.converged &&= again.converged;
+    orig.remeasured = true;
+  }
+  for (const rep of reports) writeFileSync(ARTIFACT[rep.target], `${JSON.stringify(rep, null, 2)}\n`);
 }
 
 function readReport(target) {
@@ -245,7 +273,8 @@ function printTable(rows) {
       `${pad(r.target, 6, true)} ${pad(r.grid, 9, true)} ${pad(pc, 10, true)} ${pad(r.levels, 2)} ` +
         `${pad(f1(r.setupMs + r.coldMs), 8)} ${pad(r.coldIters, 7)} ${pad(f1(r.warmMedianMs), 8)} ${pad(f1(r.warmMaxMs), 7)} ` +
         `${pad(r.warmMedianIters, 7)} ${pad(Number.isFinite(r.limit) ? r.limit : '-', 6)} ` +
-        `${pad(r.baseRatio === undefined ? '-' : r.baseRatio.toFixed(2), 5)}  ${r.flags.length ? `FAIL ${r.flags.join(',')}` : 'ok'}`,
+        `${pad(r.baseRatio === undefined ? '-' : r.baseRatio.toFixed(2), 5)}  ${r.flags.length ? `FAIL ${[...new Set(r.flags)].join(',')}` : 'ok'}` +
+        `${r.remeasured ? ' (re-measured, best of 2)' : ''}`,
     );
   }
 }
@@ -313,11 +342,31 @@ function main() {
   }
   mkdirSync(OUT_DIR, { recursive: true });
   if (!args.reuse) {
-    if (args.targets.includes('native')) runNative();
-    if (args.targets.includes('wasm')) runWasm();
+    if (args.targets.includes('native')) {
+      console.log('perf-gate: native bench (cargo run -p fem-bench --release -- --json) …');
+      runNative();
+    }
+    if (args.targets.includes('wasm')) {
+      if (existsSync(PKG_WASM) && wasmStaleness())
+        console.log('perf-gate: WARNING crates/fem-wasm/pkg is older than the Rust sources — run `pnpm build:wasm`');
+      console.log('perf-gate: wasm bench (node scripts/bench-wasm.mjs) …');
+      runWasm();
+    }
   }
   const reports = args.targets.map(readReport);
-  const { rows, limitRows, failures, regressions, notes } = evaluate(budget, reports);
+  let result = evaluate(budget, reports);
+  const suspect = result.rows.filter(
+    (r) => !r.flags.includes('no-conv') && (r.flags.includes('limit') || r.flags.includes('reg-time')),
+  );
+  if (!args.reuse && suspect.length > 0) {
+    console.log(
+      `perf-gate: re-measuring ${suspect.length} row(s) with a time violation (rules out machine noise): ` +
+        suspect.map((r) => key(r.target, r.grid, r.requested)).join(', '),
+    );
+    remeasure(reports, suspect);
+    result = evaluate(budget, reports);
+  }
+  const { rows, limitRows, failures, regressions, notes } = result;
 
   console.log(
     `\nperf gate — tol ${budget.tol}, single thread; warm = median of ${reports[0].config.carves} 3×3 carves; ` +

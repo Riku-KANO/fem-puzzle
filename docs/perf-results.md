@@ -143,6 +143,11 @@ on 60×20×20.
    more). On CI, whose x86 runners differ from the baseline CPU, the gate therefore checks
    iteration counts and absolute limits only.
 
+A row that fails a time check (3 or 4) is re-measured once, and the gate judges the faster
+of the two runs. Without this, a burst of load from other processes made the gate fail
+once during this task: 60×20×20 Jacobi cold went ×2.85 at a load average of 14. A real
+slowdown reproduces on the second run.
+
 When a slowdown is intentional, or after hardware or toolchain changes, refresh the baseline
 with `node scripts/bench-gate.mjs --record`. It refuses to record results that break a limit.
 
