@@ -21,6 +21,8 @@
   import ThinWallBadge from './game/thickness/ThinWallBadge.svelte';
   import { ThinWallHud } from './game/thickness/thinWallHud.svelte.ts';
   import type { PaletteId } from './render/colormap.ts';
+  import LoadTestBadge from './render/deform/LoadTestBadge.svelte';
+  import { IDLE_LOAD_TEST, type LoadTestStatus } from './render/deform/loadTest.ts';
   import { viewSpecFor } from './render/views/visibility.ts';
   import { HudState, type ViewMode } from './ui/hudState.svelte.ts';
   import { shortcutFor } from './ui/shortcuts.ts';
@@ -53,6 +55,8 @@
   let viewport: HTMLDivElement;
   let game = $state.raw<GameSession | null>(null);
   let opened = $state.raw<{ status: ResumeStatus }>({ status: 'fresh' });
+  /** load test (T-302) of the current session */
+  let loadTest = $state.raw<LoadTestStatus>(IDLE_LOAD_TEST);
   const runner = new StageRunner(progress, (s) => startGame(viewport, s, hud, hud.palette), browserRunnerEnv(window));
   const views = new ViewSettings(untrack(() => stage.grid));
 
@@ -62,6 +66,18 @@
     opened = { status: runner.resume };
     thinWalls.attach(session.scene);
     views.setStage(session.controller.state.stage.grid);
+    session.scene.loadTest.onStatus = (s) => (loadTest = s);
+    loadTest = session.scene.loadTest.current;
+  }
+
+  /** End the current session's load test and drop its listener (before close / restart). */
+  function unbindLoadTest(): void {
+    const lt = game?.scene.loadTest;
+    if (lt) {
+      lt.onStatus = null;
+      lt.stop();
+    }
+    loadTest = IDLE_LOAD_TEST;
   }
 
   $effect(() => {
@@ -71,6 +87,7 @@
     return () => {
       result.close(); // before the session (and its scene) is disposed
       thinWalls.detach();
+      unbindLoadTest();
       runner.close();
       game = null;
     };
@@ -107,13 +124,18 @@
     submit: () => {
       if (!game) return;
       hud.viewMode = 'normal'; // the result screen shows the whole part, not a section / X-ray
+      game.scene.loadTest.stop(); // ... and the real (undeformed) part
       result.open(game, hud);
+    },
+    loadTest: () => {
+      if (game && !result.submission) game.scene.loadTest.toggle({ current: hud.resultCurrent });
     },
     // Campaign (T-304). `clear`/`next`/`select` are the hooks for the result screen (T-301).
     select: () => router.navigate({ kind: 'select', world: stage.world }),
     restart: () => {
       result.close();
       thinWalls.detach();
+      unbindLoadTest();
       const session = runner.restart();
       if (session) bindSession(session);
     },
@@ -147,7 +169,8 @@
         actions.redo();
         break;
       case 'loadTest':
-        break; // T-302
+        if (!ev.repeat) actions.loadTest();
+        break;
     }
   }
 </script>
@@ -183,12 +206,16 @@
       />
     </div>
     <div class="bottom">
+      <LoadTestBadge status={loadTest} />
       <Toast {hud} />
       <Toolbar
         {hud}
         onBrush={actions.brush}
         onUndo={actions.undo}
         onRedo={actions.redo}
+        canLoadTest={hud.maxUtilization !== null && !result.submission}
+        loadTestActive={loadTest.state !== 'idle'}
+        onLoadTest={actions.loadTest}
         canSubmit={gate.enabled && !result.submission}
         submitTitle={gate.reason}
         submitHint={gate.problem}
