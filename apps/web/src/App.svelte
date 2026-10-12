@@ -129,10 +129,11 @@
     left: 16px;
   }
   .result-slot {
+    /* over the stage panel (the card repeats its volume / targets), leaves the model visible */
     position: absolute;
     top: 16px;
-    left: 50%;
-    transform: translateX(-50%);
+    left: 16px;
+    z-index: 1;
   }
   .right {
     position: absolute;

@@ -53,8 +53,8 @@ export class ResultSession {
     this.bench = buildOverlay(game.scene, game.controller.state.stage);
     this.lockCarving(game);
     if (s.clear) this.onClear?.(s.clear);
-    const spun = s.judgement.passed && this.spin(game.scene, () => this.afterSpin());
-    if (!spun && s.judgement.passed) this.afterSpin();
+    // a clear (≥ 1 star) gets the camera turn, then the comparison with the optimiser
+    if (s.judgement.outcome === 'clear' && !this.spin(game.scene, () => this.afterSpin())) this.afterSpin();
     return s;
   }
 
