@@ -1,7 +1,7 @@
 ---
 id: T-203
 title: Offline SIMP/OC optimiser — benchmark solutions, load calibration, star targets
-status: review
+status: done
 phase: 0
 depends: [T-101, T-103]
 owns:
