@@ -102,6 +102,12 @@ describe('tutorial steps', () => {
     expect(currentStep(wired)?.id).toBe('loadTest');
     expect(wired.entry.loadTestRuns).toBe(5);
     expect(currentStep(observe(wired, { ...base, loadTestRuns: 6 }, targets))?.id).toBe('goal');
+
+    // restart: the per-session counter drops to 0 and becomes the new baseline
+    const restarted = observe(s, { ...base, loadTestRuns: 0 }, targets);
+    expect(currentStep(restarted)?.id).toBe('loadTest');
+    expect(restarted.entry.loadTestRuns).toBe(0);
+    expect(currentStep(observe(restarted, { ...base, loadTestRuns: 1 }, targets))?.id).toBe('goal');
   });
 
   it('goal needs ★1 volume, utilisation ≤ 100 % and a settled result', () => {

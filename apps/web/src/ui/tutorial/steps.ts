@@ -170,10 +170,13 @@ export function observe(s: TutorialState, signals: TutorialSignals, targets: Tar
   }
   const step = currentStep(next);
   if (step?.done?.(signals, next.entry, targets)) return advance(next, signals);
-  // Signals that were not wired when the step was entered (e.g. load test count arriving
-  // later) become the baseline instead of counting as progress.
-  if (step && next.entry.loadTestRuns === undefined && signals.loadTestRuns !== undefined) {
-    next = { ...next, entry: { ...next.entry, loadTestRuns: signals.loadTestRuns } };
+  // The load-test counter is per game session (T-302): it appears late when not wired at
+  // step entry, and drops to 0 when the stage is restarted. Either way it becomes the new
+  // baseline instead of counting as progress.
+  const runs = signals.loadTestRuns;
+  const base = next.entry.loadTestRuns;
+  if (step && runs !== undefined && (base === undefined || runs < base)) {
+    next = { ...next, entry: { ...next.entry, loadTestRuns: runs } };
   }
   return next;
 }
