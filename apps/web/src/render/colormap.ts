@@ -73,6 +73,8 @@ export function legendGradient(p: Palette, direction = 'to top'): string {
 /** Per-vertex shader flags (see voxelMesh.ts). */
 export const FLAG_KEEP = 1;
 export const FLAG_OVER = 2;
+/** thinner than the 2-voxel minimum (T-308 warning dots) */
+export const FLAG_THIN = 4;
 
 /** sRGB → linear (Three.js treats vertex colours as linear). */
 export function srgbToLinear(c: Rgb): Rgb {
@@ -94,6 +96,8 @@ export interface PaintInput {
   /** per element utilisation, or null before the first result */
   utilization: Float32Array | null;
   keep: Uint8Array;
+  /** per element thin-wall warning flags (T-308), or null/absent to hide the tint */
+  thin?: Uint8Array | null;
 }
 
 /**
@@ -107,6 +111,7 @@ export function paintQuads(
   flags: Uint8Array,
 ): void {
   const rgb = [0, 0, 0];
+  const thin = input.thin ?? null;
   for (let q = 0; q < quadElement.length; q++) {
     const e = quadElement[q]!;
     let f = 0;
@@ -124,6 +129,7 @@ export function paintQuads(
       rgb[1] = input.neutral[1];
       rgb[2] = input.neutral[2];
     }
+    if (thin?.[e] && !input.keep[e]) f |= FLAG_THIN;
     for (let c = 0; c < 4; c++) {
       const v = q * 4 + c;
       colors[v * 3] = rgb[0]!;

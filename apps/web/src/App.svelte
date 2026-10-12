@@ -6,6 +6,8 @@
   import { startGame, type GameSession } from './game/boot.ts';
   import type { Axis } from './game/grid.ts';
   import { listStages, pickInitialStage } from './game/stages.ts';
+  import ThinWallBadge from './game/thickness/ThinWallBadge.svelte';
+  import { ThinWallHud } from './game/thickness/thinWallHud.svelte.ts';
   import type { PaletteId } from './render/colormap.ts';
   import { viewSpecFor } from './render/views/visibility.ts';
   import { HudState, type ViewMode } from './ui/hudState.svelte.ts';
@@ -18,13 +20,16 @@
 
   const { stage } = pickInitialStage(listStages(), window.location.search);
   const hud = new HudState();
+  const thinWalls = new ThinWallHud();
   let viewport: HTMLDivElement;
   let game = $state.raw<GameSession | null>(null);
   const views = new ViewSettings(stage.grid);
 
   onMount(() => {
     game = startGame(viewport, stage, hud, hud.palette);
+    const detachThinWalls = thinWalls.attach(game.scene);
     return () => {
+      detachThinWalls();
       game?.dispose();
       game = null;
     };
@@ -79,6 +84,7 @@
   <div class="hud">
     <div class="top-left">
       <StagePanel title={stage.title} world={stage.world} targets={stage.targets} {hud} />
+      <ThinWallBadge hud={thinWalls} />
     </div>
     <div class="right">
       <SidePanel
