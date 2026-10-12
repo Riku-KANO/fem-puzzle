@@ -145,7 +145,7 @@ describe('WasmBackend chunk loop (fake Session)', () => {
     return backend.solve(hooks).then((out) => {
       // iterate(0) = implicit begin, then FIRST_CHUNK, then 8 ms / 0.5 ms = 16 per chunk
       expect(session.calls).toEqual([0, FIRST_CHUNK, 16, 16]);
-      expect(yields()).toBe(2); // not after the chunk that finished
+      expect(yields()).toBe(3); // once up front, then between chunks (not after the last)
       expect(backend.msPerIter).toBeCloseTo(0.5);
       expect(out).toMatchObject({ converged: true, iterations: 40, relResidual: 1e-6, loadsConnected: true });
       expect(out!.cases).toHaveLength(1);
@@ -166,16 +166,27 @@ describe('WasmBackend chunk loop (fake Session)', () => {
     expect(progress[0]!.relResidual).toBeCloseTo(1 / 9);
   });
 
-  it('returns null as soon as a newer request is waiting', async () => {
+  it('a request already waiting before the first chunk skips the solve entirely', async () => {
     const session = new FakeSession(100);
     const backend = new WasmBackend(session, 1e-4, { now: () => 0 });
     let yielded = 0;
     const { hooks } = fakeHooks({ cancelled: () => yielded > 0, yield: async () => void yielded++ });
     expect(await backend.solve(hooks)).toBeNull();
+    expect(session.calls).toEqual([]);
+  });
+
+  it('returns null at the next chunk boundary once a newer request is waiting', async () => {
+    const session = new FakeSession(100);
+    const backend = new WasmBackend(session, 1e-4, { now: () => 0 });
+    let yielded = 0;
+    const { hooks } = fakeHooks({ cancelled: () => yielded > 1, yield: async () => void yielded++ });
+    expect(await backend.solve(hooks)).toBeNull();
     expect(session.calls).toEqual([0, FIRST_CHUNK]);
     // an unchanged solid set continues the interrupted solve instead of restarting it
     const again = await backend.solve(fakeHooks().hooks);
     expect(again!.iterations).toBe(100);
+    // [0, 8 | 0, then only the remaining 92 iterations in chunks of 8]
+    expect(session.calls.length).toBe(3 + Math.ceil(92 / FIRST_CHUNK));
   });
 
   it('done with a large residual (mechanism / stall) is not converged', async () => {
@@ -388,16 +399,37 @@ describe.skipIf(!PKG_BUILT)(`WASM backend through SolverHost (real fem-wasm)${PK
     expect(r[0]!.iterations).toBeGreaterThan(p.at(-1)!.iteration);
   });
 
+  it('a burst of carves delivered one task apart is solved once, for the newest seq', async () => {
+    const { host, out } = setup();
+    host.receive({ type: 'init', stage: demo });
+    await host.idle();
+    out.length = 0;
+    // like worker messages: each carve arrives as its own event-loop task
+    host.receive({ type: 'carve', seq: 1, removed: [cellIndex(g, 12, 7, 0)], restored: [] });
+    setTimeout(() => host.receive({ type: 'carve', seq: 2, removed: [cellIndex(g, 13, 7, 0)], restored: [] }), 0);
+    setTimeout(() => host.receive({ type: 'carve', seq: 3, removed: [cellIndex(g, 14, 7, 0)], restored: [] }), 0);
+    await new Promise((r) => setTimeout(r, 5));
+    await host.idle();
+    expect(results(out).map((m) => m.seq)).toEqual([3]);
+    expect(results(out)[0]!.converged).toBe(true);
+  });
+
+  /** host yield that runs `inject` once, on the `nth` yield (1 = before the first chunk) */
+  const injectOnYield = (nth: number, inject: () => void) => {
+    let n = 0;
+    return async () => {
+      if (++n === nth) inject();
+      await new Promise((r) => setTimeout(r, 0));
+    };
+  };
+
   it('a carve arriving mid-solve cancels it at the next chunk', async () => {
-    let injected = false;
+    let injected = false; // the 2nd yield follows the first Jacobi chunk (8 of ~140 iterations)
     const ctx = setup({
-      yieldFn: async () => {
-        if (!injected) {
-          injected = true;
-          ctx.host.receive({ type: 'carve', seq: 1, removed: [cellIndex(g, 12, 7, 0)], restored: [] });
-        }
-        await new Promise((r) => setTimeout(r, 0));
-      },
+      yieldFn: injectOnYield(2, () => {
+        injected = true;
+        ctx.host.receive({ type: 'carve', seq: 1, removed: [cellIndex(g, 12, 7, 0)], restored: [] });
+      }),
     });
     ctx.host.receive({ type: 'init', stage: demo, options: { preconditioner: 'jacobi' } });
     await ctx.host.idle();
@@ -407,16 +439,7 @@ describe.skipIf(!PKG_BUILT)(`WASM backend through SolverHost (real fem-wasm)${PK
   });
 
   it('cancel mid-solve posts no result; the next request continues the solve', async () => {
-    let injected = false;
-    const ctx = setup({
-      yieldFn: async () => {
-        if (!injected) {
-          injected = true;
-          ctx.host.receive({ type: 'cancel' });
-        }
-        await new Promise((r) => setTimeout(r, 0));
-      },
-    });
+    const ctx = setup({ yieldFn: injectOnYield(2, () => ctx.host.receive({ type: 'cancel' })) });
     ctx.host.receive({ type: 'init', stage: demo, options: { preconditioner: 'jacobi' } });
     await ctx.host.idle();
     expect(ctx.out.map((m) => m.type)).toEqual(['ready']);

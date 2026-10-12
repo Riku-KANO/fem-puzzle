@@ -3,9 +3,10 @@
 // maps the protocol onto `set_solid` / `iterate(chunk)` / result readback.
 //
 // Solves run in time-boxed iteration chunks (~`CHUNK_TARGET_MS` each, sized from the
-// measured cost per iteration and carried over between solves). Between chunks the backend
-// checks for newer requests, posts a `progress` snapshot when one is due and yields to the
-// worker event loop. With multigrid a W1/W2 solve usually fits into one or two chunks.
+// measured cost per iteration and carried over between solves). Before the first chunk and
+// between chunks the backend yields to the worker event loop and drops the solve if a newer
+// request is waiting; between chunks it also posts a `progress` snapshot when one is due.
+// With multigrid a W1/W2 solve usually fits into a single chunk.
 
 import type { SolverOptionsMsg, Stage } from '@stress-carve/protocol';
 import type { Backend, BackendFactory, BackendInfo, SolveHooks, SolveOutput } from '../backend.ts';
@@ -62,6 +63,11 @@ export class WasmBackend implements Backend {
 
   async solve(hooks: SolveHooks): Promise<SolveOutput | null> {
     const s = this.session;
+    // Let requests the main thread has already posted arrive first: a multigrid solve
+    // usually finishes in one chunk, so without this a burst of carves would be solved
+    // one by one instead of once for the newest state.
+    await hooks.yield();
+    if (hooks.cancelled()) return null;
     // iterate(0) runs the implicit begin() (active set, preconditioner, warm start) when
     // the solid set changed, without iterating — keeps that setup out of the per-iteration
     // estimate. Unchanged set after a cancelled solve: continues where it stopped.
