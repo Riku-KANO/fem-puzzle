@@ -9,4 +9,5 @@ publish.workspace = true
 [dependencies]
 fem.workspace = true
 stage.workspace = true
-serde_json.workspace = true
+# float_roundtrip: exact float parsing, so untouched stage fields re-serialise byte-identically.
+serde_json = { workspace = true, features = ["float_roundtrip"] }

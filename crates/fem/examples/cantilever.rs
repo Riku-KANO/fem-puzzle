@@ -5,8 +5,9 @@
 //! For each grid: a solid block clamped on x-, loaded downwards on the top edge of the
 //! tip (like a stage). Prints the cold solve (from u = 0) and the warm re-solve after a
 //! 3×3 patch on the top surface at mid-span is carved (warm start from the previous u),
-//! plus a cold solve of the carved design for reference. Times are best-of-3 wall
-//! clock, single thread, native.
+//! plus a cold solve of the carved design for reference. A second table compares cold
+//! solves of a randomly carved (≈ 50 %) 40×12×12 design and of the 60×20×20 block.
+//! Times are best-of-3 wall clock, single thread, native.
 
 use fem::{Preconditioner, Problem, SolveStatus, Solver, SolverOptions};
 use stage::{Bitmask, Face, Load, Stage, Support, Targets};
@@ -14,8 +15,8 @@ use std::time::Instant;
 
 const GRIDS: [[usize; 3]; 4] = [[24, 8, 4], [32, 8, 8], [32, 12, 12], [40, 12, 12]];
 const TOLS: [f64; 2] = [1e-6, 1e-4];
-/// Preconditioners to compare (T-201 adds `Preconditioner::Multigrid`).
-const PRECONDS: [Preconditioner; 1] = [Preconditioner::Jacobi];
+/// Preconditioners to compare (Jacobi baseline vs multigrid).
+const PRECONDS: [Preconditioner; 2] = [Preconditioner::Jacobi, Preconditioner::Multigrid];
 const REPEATS: usize = 3;
 
 fn cantilever([nx, ny, nz]: [usize; 3]) -> Stage {
@@ -57,6 +58,23 @@ fn cantilever([nx, ny, nz]: [usize; 3]) -> Stage {
     }
 }
 
+/// Remove each element with probability `1 − keep` (deterministic LCG), except the
+/// clamped layer and the loaded tip layer.
+fn random_carve(p: &Problem, keep: f64, mut seed: u64) -> Vec<(usize, bool)> {
+    let g = p.grid;
+    (0..g.elements())
+        .filter(|&e| {
+            seed = seed
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            let r = (seed >> 11) as f64 / (1u64 << 53) as f64;
+            let x = g.element_coords(e)[0];
+            x != 0 && x != g.nx - 1 && r >= keep
+        })
+        .map(|e| (e, false))
+        .collect()
+}
+
 /// 3×3 patch on the top surface around mid-span.
 fn patch(p: &Problem) -> Vec<(usize, bool)> {
     let g = p.grid;
@@ -85,7 +103,7 @@ fn timed<S>(
 
 fn main() {
     println!(
-        "{:<10} {:>6} {:>6} {:>7} {:<7} | {:>10} {:>9} | {:>10} {:>9} | {:>10} {:>9} | {:>7}",
+        "{:<10} {:>6} {:>6} {:>7} {:<9} | {:>10} {:>9} | {:>10} {:>9} | {:>10} {:>9} | {:>7}",
         "grid",
         "elems",
         "dofs",
@@ -133,7 +151,7 @@ fn main() {
                     assert!(st.done && st.rel_residual <= tol, "{st:?}");
                 }
                 println!(
-                    "{:<10} {:>6} {:>6} {:>7.0e} {:<7} | {:>10} {:>9.1} | {:>10} {:>9.1} | {:>10} {:>9.1} | {:>7.3}",
+                    "{:<10} {:>6} {:>6} {:>7.0e} {:<9} | {:>10} {:>9.1} | {:>10} {:>9.1} | {:>10} {:>9.1} | {:>7.3}",
                     format!("{}x{}x{}", dims[0], dims[1], dims[2]),
                     g.elements(),
                     g.dofs(),
@@ -148,6 +166,55 @@ fn main() {
                     cold_ms / cold.iterations as f64,
                 );
             }
+        }
+    }
+    println!();
+    println!(
+        "{:<18} {:>7} | {:>7} {:>9} | {:>7} {:>9} | {:>6} {:>6}",
+        "cold solve", "tol", "jac it", "jac ms", "mg it", "mg ms", "it x", "time x"
+    );
+    let extra: [(&str, [usize; 3], bool); 2] = [
+        ("40x12x12 carved50", [40, 12, 12], true),
+        ("60x20x20 solid", [60, 20, 20], false),
+    ];
+    for (name, dims, carved) in extra {
+        let problem = Problem::from_stage(&cantilever(dims)).expect("valid stage");
+        let carve = if carved {
+            random_carve(&problem, 0.5, 1)
+        } else {
+            Vec::new()
+        };
+        for tol in TOLS {
+            let run = |pc| {
+                let opts = SolverOptions {
+                    tol,
+                    preconditioner: pc,
+                    ..SolverOptions::default()
+                };
+                let (st, ms) = timed(
+                    || {
+                        let mut s = Solver::new(problem.clone(), opts);
+                        s.set_solid(&carve);
+                        s
+                    },
+                    |s| s.solve(),
+                );
+                assert!(st.done && st.rel_residual <= tol, "{st:?}");
+                (st.iterations, ms)
+            };
+            let (ji, jms) = run(Preconditioner::Jacobi);
+            let (mi, mms) = run(Preconditioner::Multigrid);
+            println!(
+                "{:<18} {:>7.0e} | {:>7} {:>9.1} | {:>7} {:>9.1} | {:>6.1} {:>6.1}",
+                name,
+                tol,
+                ji,
+                jms,
+                mi,
+                mms,
+                ji as f64 / mi as f64,
+                jms / mms
+            );
         }
     }
 }

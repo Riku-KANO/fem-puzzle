@@ -4,7 +4,7 @@
 mod common;
 
 use common::{clamp, max_abs, stage};
-use fem::{Mode, Problem, Solver, SolverOptions};
+use fem::{Mode, Preconditioner, Problem, Solver, SolverOptions};
 use stage::{Face, Load, LoadCase, Support};
 
 fn rel_diff(a: &[f64], b: &[f64]) -> f64 {
@@ -209,13 +209,19 @@ fn warm_start_after_small_carve_is_not_slower_than_cold() {
 }
 
 /// `iterate(n)` in chunks is exactly the same computation as one `solve`.
+/// (Jacobi: this grid is small enough for multigrid to be a direct solve in 1 iteration;
+/// the multigrid variant lives in `tests/multigrid.rs`.)
 #[test]
 fn chunked_iteration_is_resumable_and_identical() {
     let s = common::cantilever([12, 4, 2], 500.0);
     let p = Problem::from_stage(&s).unwrap();
-    let mut a = Solver::new(p.clone(), SolverOptions::default());
+    let opts = SolverOptions {
+        preconditioner: Preconditioner::Jacobi,
+        ..SolverOptions::default()
+    };
+    let mut a = Solver::new(p.clone(), opts);
     let sa = a.solve();
-    let mut b = Solver::new(p, SolverOptions::default());
+    let mut b = Solver::new(p, opts);
     b.begin();
     let mut last = b.status();
     assert_eq!(last.iterations, 0);
@@ -255,6 +261,8 @@ fn max_iters_stops_with_done_but_not_converged() {
         Problem::from_stage(&s).unwrap(),
         SolverOptions {
             max_iters: 5,
+            // Jacobi: multigrid solves this small grid directly in one iteration.
+            preconditioner: Preconditioner::Jacobi,
             ..SolverOptions::default()
         },
     );

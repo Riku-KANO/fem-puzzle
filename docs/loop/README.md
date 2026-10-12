@@ -87,6 +87,21 @@ acceptance criteria (tests, numbers, commands) and the `verify` commands. Size i
 agent can finish it in one sitting; split otherwise. Prefer adding a new module directory
 per feature (`apps/web/src/<feature>/`) so features own disjoint paths.
 
+## Lessons from running the loop
+
+- **Review after merge when the risk is speed, not correctness.** A preconditioner bug can only
+  slow CG down (the true residual decides convergence), so T-201 was integrated first and
+  reviewed afterwards; numerics that decide *answers* (T-101) are reviewed before merging.
+- **Review findings become a follow-up task for the original author** (T-311, T-312): resume
+  that agent — it still has the context — with a task file that lists each finding.
+- **Every fix needs a test that fails on the old code.** Reviewers found tests that could not
+  fail (`iterations <= max_iters`, host cancel tests that never reached a running solve).
+- **A gate that is not in `verify.sh` does not exist.** The WASM smoke test broke silently
+  after a contract change because only humans ran it; now `verify full` runs it. Never pipe a
+  gate through `| tail` in a `&&` chain — it hides the exit code.
+- **Contract questions go to the orchestrator immediately** and are fixed in spec + both
+  language twins in one commit, then announced to every consumer (27fa266 supported cells).
+
 ## Human checkpoints
 
 The design doc's gates are human decisions: Gate 0 (solver speed, T-204 report),

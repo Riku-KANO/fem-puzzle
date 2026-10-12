@@ -2,6 +2,7 @@
 
 use crate::connectivity::connected_to_seeds;
 use crate::hex8::{self, b_centroid, d1};
+use crate::mg::Multigrid;
 use crate::operator::Operator;
 use crate::pcg::{Pcg, Step};
 use crate::precond::{Jacobi, Precond};
@@ -14,9 +15,9 @@ pub const E_MIN_RATIO: f64 = 1e-9;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Preconditioner {
     /// Diagonal scaling (baseline, always available).
-    #[default]
     Jacobi,
-    /// Geometric multigrid V-cycle (task T-201). Until T-201 lands this falls back to Jacobi.
+    /// Geometric multigrid V-cycle with Galerkin coarse operators ([`crate::mg`]).
+    #[default]
     Multigrid,
 }
 
@@ -78,11 +79,12 @@ struct CaseState {
 
 /// Create the preconditioner for `kind`.
 ///
-/// Extension point for T-201: `Preconditioner::Multigrid` constructs the multigrid
-/// preconditioner here; until then it falls back to Jacobi.
+/// `Preconditioner::Multigrid` builds the geometric multigrid of [`crate::mg`] (sized on
+/// the first rebuild).
 fn make_precond(kind: Preconditioner) -> Box<dyn Precond> {
     match kind {
-        Preconditioner::Jacobi | Preconditioner::Multigrid => Box::new(Jacobi::default()),
+        Preconditioner::Jacobi => Box::new(Jacobi::default()),
+        Preconditioner::Multigrid => Box::new(Multigrid::default()),
     }
 }
 
