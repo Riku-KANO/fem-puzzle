@@ -5,8 +5,11 @@
 //! implemented here are `M_f P` and `Pᵀ M_f`. With `A_f = M K M + (I − M)` this makes
 //! `(M_f P)ᵀ A_f (M_f P) = Pᵀ M K M P = Σ_e P_eᵀ (M_e K_e M_e) P_e` exactly.
 
-use super::grid::grid;
+use super::grid::{AxisCoarsening, grid, variant_offset_width};
 use crate::grid::{Grid, HEX8_NODE_OFFSETS as LOCAL_NODES};
+
+/// Number of child kinds: 3 variants (left / right half, single-width cell) per axis.
+pub(crate) const CHILD_KINDS: usize = 27;
 
 /// Interpolation weights from the 8 coarse-element nodes to the 8 nodes of one fine
 /// child element: for fine local node `a`, `ent[a][..cnt[a]]` lists `(A, w)` with
@@ -18,7 +21,8 @@ pub(crate) struct ChildMap {
 }
 
 impl ChildMap {
-    /// `offset` = child position inside the parent per axis (`< f`), `f` = factors.
+    /// `offset` = child position inside the parent per axis (`< f`), `f` = parent cell
+    /// width in fine cells per axis (1 or 2).
     fn new(offset: [usize; 3], f: [usize; 3]) -> Self {
         let mut cnt = [0usize; 8];
         let mut ent = [[(0usize, 0.0f64); 8]; 8];
@@ -95,38 +99,31 @@ type Stencil1 = [(usize, f64); 2];
 pub(crate) struct Transfer {
     pub fine: Grid,
     pub coarse: Grid,
-    pub f: [usize; 3],
+    ax: [AxisCoarsening; 3],
     axis: [Vec<Stencil1>; 3],
-    /// Indexed by child id `ox + 2*(oy + 2*oz)`; only offsets `< f` are meaningful.
+    /// Indexed by child id `vx + 3·vy + 9·vz` (per-axis variants, see `grid`).
     pub child: Vec<ChildMap>,
 }
 
 impl Transfer {
-    pub fn new(fine: Grid, f: [usize; 3]) -> Self {
-        let coarse = grid(fine.nx / f[0], fine.ny / f[1], fine.nz / f[2]);
-        let fine_nodes = [fine.nx + 1, fine.ny + 1, fine.nz + 1];
-        let axis = std::array::from_fn(|ax| {
-            (0..fine_nodes[ax])
-                .map(|i| {
-                    if f[ax] == 1 || i % 2 == 0 {
-                        [(i / f[ax], 1.0), (0, 0.0)]
-                    } else {
-                        [((i - 1) / 2, 0.5), (i.div_ceil(2), 0.5)]
-                    }
-                })
-                .collect()
-        });
-        let child = (0..8)
+    pub fn new(fine: Grid, ax: [AxisCoarsening; 3]) -> Self {
+        debug_assert_eq!(
+            [ax[0].fine, ax[1].fine, ax[2].fine],
+            [fine.nx, fine.ny, fine.nz]
+        );
+        let coarse = grid(ax[0].coarse, ax[1].coarse, ax[2].coarse);
+        let axis = std::array::from_fn(|a| (0..=ax[a].fine).map(|i| ax[a].stencil(i)).collect());
+        let child = (0..CHILD_KINDS)
             .map(|id| {
-                let o = [id % 2, (id / 2) % 2, id / 4];
-                let o = [o[0].min(f[0] - 1), o[1].min(f[1] - 1), o[2].min(f[2] - 1)];
-                ChildMap::new(o, f)
+                let v = [id % 3, (id / 3) % 3, id / 9];
+                let ow = v.map(variant_offset_width);
+                ChildMap::new(ow.map(|(o, _)| o), ow.map(|(_, w)| w))
             })
             .collect();
         Self {
             fine,
             coarse,
-            f,
+            ax,
             axis,
             child,
         }
@@ -135,24 +132,23 @@ impl Transfer {
     /// Parent coarse element and child id of fine element `e`.
     pub fn parent(&self, e: usize) -> (usize, usize) {
         let [x, y, z] = self.fine.element_coords(e);
-        let f = self.f;
-        let pe = self.coarse.element_index(x / f[0], y / f[1], z / f[2]);
-        let id = (x % f[0]) + 2 * ((y % f[1]) + 2 * (z % f[2]));
-        (pe, id)
+        let (cx, vx) = self.ax[0].cell(x);
+        let (cy, vy) = self.ax[1].cell(y);
+        let (cz, vz) = self.ax[2].cell(z);
+        (self.coarse.element_index(cx, cy, cz), vx + 3 * vy + 9 * vz)
     }
 
     /// Children `(fine element, child id)` of coarse element `ce`; returns the count.
     pub fn children(&self, ce: usize, out: &mut [(usize, usize); 8]) -> usize {
         let [cx, cy, cz] = self.coarse.element_coords(ce);
-        let f = self.f;
+        let (chx, nx) = self.ax[0].children(cx);
+        let (chy, ny) = self.ax[1].children(cy);
+        let (chz, nz) = self.ax[2].children(cz);
         let mut n = 0;
-        for oz in 0..f[2] {
-            for oy in 0..f[1] {
-                for ox in 0..f[0] {
-                    let e = self
-                        .fine
-                        .element_index(cx * f[0] + ox, cy * f[1] + oy, cz * f[2] + oz);
-                    out[n] = (e, ox + 2 * (oy + 2 * oz));
+        for &(z, vz) in &chz[..nz] {
+            for &(y, vy) in &chy[..ny] {
+                for &(x, vx) in &chx[..nx] {
+                    out[n] = (self.fine.element_index(x, y, z), vx + 3 * vy + 9 * vz);
                     n += 1;
                 }
             }
@@ -281,14 +277,22 @@ mod tests {
         p
     }
 
+    fn transfer(nx: usize, ny: usize, nz: usize) -> Transfer {
+        let g = grid(nx, ny, nz);
+        let (_, ax) = super::super::grid::coarsen(&g).expect("coarsenable");
+        Transfer::new(g, ax)
+    }
+
     #[test]
     fn prolongation_matches_child_maps_and_is_trilinear() {
-        for (fine, f) in [
-            (grid(4, 2, 2), [2, 2, 2]),
-            (grid(6, 3, 2), [2, 1, 2]),
-            (grid(2, 1, 1), [2, 1, 1]),
+        for t in [
+            transfer(4, 2, 2),
+            transfer(6, 3, 2),
+            transfer(2, 1, 1),
+            transfer(5, 3, 1),
+            transfer(3, 4, 5),
         ] {
-            let t = Transfer::new(fine, f);
+            let ax = t.ax;
             let p = dense_p_from_children(&t);
             let nc = t.coarse.dofs();
             let nf = t.fine.dofs();
@@ -321,7 +325,11 @@ mod tests {
                 for j in 0..cy {
                     for i in 0..cx {
                         let n = t.coarse.node_index(i, j, k);
-                        let v = lin((i * f[0]) as f64, (j * f[1]) as f64, (k * f[2]) as f64);
+                        let v = lin(
+                            ax[0].coarse_node_position(i) as f64,
+                            ax[1].coarse_node_position(j) as f64,
+                            ax[2].coarse_node_position(k) as f64,
+                        );
                         zc[3 * n..3 * n + 3].copy_from_slice(&v);
                     }
                 }
@@ -345,12 +353,15 @@ mod tests {
 
     #[test]
     fn children_and_parent_agree() {
-        let t = Transfer::new(grid(6, 4, 3), [2, 2, 1]);
+        let t = transfer(6, 4, 3);
+        assert_eq!([t.coarse.nx, t.coarse.ny, t.coarse.nz], [3, 2, 2]);
         let mut seen = vec![false; t.fine.elements()];
         let mut buf = [(0, 0); 8];
         for ce in 0..t.coarse.elements() {
             let n = t.children(ce, &mut buf);
-            assert_eq!(n, 4);
+            // z: 3 cells → coarse cells of width 2 and 1.
+            let cz = t.coarse.element_coords(ce)[2];
+            assert_eq!(n, if cz == 0 { 8 } else { 4 });
             for &(e, id) in &buf[..n] {
                 assert_eq!(t.parent(e), (ce, id));
                 assert!(!seen[e]);
