@@ -30,10 +30,11 @@ Design doc: ゲームモード (キャンペーン), 公開形態 (記録はブ�
 
 ### 2026-10-12 — T-304 worker: campaign, records, resume, routing (status → review)
 
-**Built.** Verify: web typecheck (svelte-check 0 warnings), web vitest 253 tests (6 new files,
-86 T-304 tests), `vite build`, T-306 e2e (2 passed, wasm skipped: T-205 not on main),
-`scripts/verify.sh fast` all green. Main merged at ac64fb9 (incl. T-301, T-303, T-306, T-308,
-T-311). T-303: `views.setStage(grid)` is called in `bindSession` (stage switch and restart);
+**Built.** Verify: web typecheck (svelte-check 0 warnings), 86 T-304 tests in 6 new files,
+`vite build`, T-306 e2e,
+`scripts/verify.sh fast` all green. Main merged last at T-205's 57f91ca (incl. T-205, T-301,
+T-303, T-306, T-308, T-311): web vitest 265 passed / 11 skipped, e2e with `pnpm build:wasm`
+3/3 passed (mock ×2 + wasm). T-303: `views.setStage(grid)` is called in `bindSession` (stage switch and restart);
 checked section view on w1-01 (z cut 2/4) → switch to w2-01 keeps 断面 with the cut reset to
 4/8.
 
