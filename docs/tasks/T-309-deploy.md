@@ -1,7 +1,7 @@
 ---
 id: T-309
 title: Cloudflare deployment with the cf CLI (Workers + Static Assets) and CI template
-status: review
+status: done
 phase: 1
 depends: [T-202]
 owns:
