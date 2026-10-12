@@ -36,7 +36,10 @@ Indexing, units and the stage semantics are defined in
 `K(ρ) u = f`, preconditioned conjugate gradients, matrix-free on the finest level:
 `y = Σ_e E_e h · Ke1 · x_e` gathered/scattered per element.
 
-- Convergence: `‖r‖₂ / ‖f‖₂ ≤ tol` (default `tol = 1e-6`; the UI may stop at `1e-4`).
+- Convergence: `‖r‖₂ / ‖M f‖₂ ≤ tol` on the masked system, confirmed with the true residual
+  (forces on fixed DOFs are reactions and do not count). Default `tol = 1e-6`; the game uses `1e-4`.
+- A solve that stalls (e.g. a mechanism: `pᵀAp ≤ 0`) or hits `max_iters` ends with
+  `done = true` and not converged; callers must treat "not converged" as a failed design.
 - **Warm start**: the previous displacement is the initial guess (masked).
 - **Preconditioners**: `Jacobi` (baseline, always available) and `Multigrid`
   (default once it exists):
