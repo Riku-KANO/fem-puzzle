@@ -1,7 +1,7 @@
 ---
 id: T-309
 title: Cloudflare Pages deployment config and CI artefact
-status: todo
+status: doing
 phase: 1
 depends: [T-202]
 owns:

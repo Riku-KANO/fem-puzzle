@@ -8,9 +8,19 @@ owns:
   - apps/web/src/modes/duel/**
   - crates/fem-wasm/src/simp.rs
 verify:
-  - bash scripts/verify.sh fast
+  - cargo test -p fem-wasm
+  - pnpm --filter @stress-carve/web test
 ---
 ## Goal
-Stub — flesh out goal, requirements and acceptance criteria (see the design doc) before dispatching.
+Design doc: アルゴリズム対決 — SIMP solves the same stage live next to the player.
+
+## Requirements
+- `crates/fem-wasm/src/simp.rs`: incremental SIMP/OC `step()` API reusing `crates/topopt`
+  logic (move shared code into a library module of topopt or fem — coordinate with owners).
+- Second worker runs SIMP; split view shows its density field (thresholded preview) and volume
+  over time; the race ends when the player submits or SIMP converges.
+
+## Acceptance criteria
+- [ ] SIMP in WASM reproduces the offline benchmark volume within 0.02 on W1 stages.
 
 ## Log
