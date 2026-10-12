@@ -78,9 +78,16 @@ export class GameController {
       result: (m) => this.onResult(m),
       error: (m) => this.onError(m),
     });
+    // a new session must not show anything from the previous stage
     hud.brush = this.brush;
-    hud.error = null;
+    hud.iteration = 0;
+    hud.relResidual = Number.NaN;
+    hud.backend = null;
     hud.maxUtilization = null;
+    hud.loadsConnected = true;
+    hud.converged = false;
+    hud.error = null;
+    hud.toast = null;
     solver.init(state.stage, options);
     this.syncHud();
   }
