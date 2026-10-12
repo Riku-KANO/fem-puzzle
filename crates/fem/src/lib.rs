@@ -7,6 +7,8 @@
 //! Conventions: element `x + nx*(y + ny*z)`, node `i + (nx+1)*(j + (ny+1)*k)`, DOF `3n+c`,
 //! SI units. See [`grid`] and [`hex8`].
 
+#![warn(missing_docs)]
+
 pub mod connectivity;
 pub mod grid;
 pub mod hex8;
