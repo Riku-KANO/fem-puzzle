@@ -179,14 +179,53 @@ impl Stage {
         }
     }
 
-    /// `keep` plus implicitly protected support and load cells.
+    /// Cells of one support: the listed `cells`, or — for a face-only support — every
+    /// initially solid cell touching that grid face.
+    pub fn support_cells(&self, support: &Support, solid: &[bool]) -> Vec<usize> {
+        if let Some(cells) = &support.cells {
+            return cells.iter().map(|&c| self.element_index(c)).collect();
+        }
+        let axis = support.face.axis();
+        let layer = if support.face.is_positive() {
+            self.grid[axis] - 1
+        } else {
+            0
+        };
+        let [nx, ny, nz] = self.grid;
+        let mut out = Vec::new();
+        for z in 0..nz {
+            for y in 0..ny {
+                for x in 0..nx {
+                    let e = self.element_index([x, y, z]);
+                    if [x, y, z][axis] == layer && solid[e] {
+                        out.push(e);
+                    }
+                }
+            }
+        }
+        out
+    }
+
+    /// Per element: is it a supported cell of any support (stage-format.md, Support).
+    /// Connectivity to supports is measured from exactly these cells.
+    pub fn supported_cells(&self) -> Result<Vec<bool>, StageError> {
+        let n = self.element_count();
+        let solid = self.solid.to_bools(n)?;
+        let mut supported = vec![false; n];
+        for s in &self.supports {
+            for e in self.support_cells(s, &solid) {
+                supported[e] = true;
+            }
+        }
+        Ok(supported)
+    }
+
+    /// `keep` plus implicitly protected supported cells and load cells.
     pub fn effective_keep(&self) -> Result<Vec<bool>, StageError> {
         let n = self.element_count();
         let mut keep = self.keep.to_bools(n)?;
-        for s in &self.supports {
-            for &c in s.cells.iter().flatten() {
-                keep[self.element_index(c)] = true;
-            }
+        for (k, s) in keep.iter_mut().zip(self.supported_cells()?) {
+            *k |= s;
         }
         for case in self.cases() {
             for l in &case.loads {
@@ -307,6 +346,22 @@ mod tests {
         assert!(keep[s.element_index([3, 0, 0])]);
         assert!(keep[s.element_index([3, 0, 1])]);
         assert!(!keep[s.element_index([1, 1, 1])]);
+    }
+
+    #[test]
+    fn face_support_cells_are_supported_and_protected() {
+        let s = Stage::from_json(&sample_json()).unwrap();
+        let supported = s.supported_cells().unwrap();
+        let keep = s.effective_keep().unwrap();
+        for z in 0..2 {
+            for y in 0..2 {
+                let wall = s.element_index([0, y, z]);
+                assert!(supported[wall] && keep[wall], "x- layer cell ({y},{z})");
+                let inner = s.element_index([1, y, z]);
+                assert!(!supported[inner]);
+            }
+        }
+        assert_eq!(supported.iter().filter(|&&b| b).count(), 4);
     }
 
     #[test]
