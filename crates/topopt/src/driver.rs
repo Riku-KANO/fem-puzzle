@@ -292,7 +292,9 @@ pub fn sweep(
             ..settings.simp
         };
         let x0 = out.last().map(|r| r.x.as_slice());
-        let run = run_one(
+        // A degenerate volfrac (e.g. too little free material besides big keep regions)
+        // must not sink the whole sweep: report it and go on from the last good design.
+        match run_one(
             model,
             &simp,
             &mut analysis,
@@ -300,9 +302,13 @@ pub fn sweep(
             &opts,
             x0,
             &mut |_| {},
-        )?;
-        on_run(&run);
-        out.push(run);
+        ) {
+            Ok(run) => {
+                on_run(&run);
+                out.push(run);
+            }
+            Err(e) => eprintln!("  warning: volfrac {v} skipped: {e}"),
+        }
     }
     if out.is_empty() {
         return err("no feasible volume fraction in the sweep");
