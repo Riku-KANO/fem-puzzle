@@ -1,23 +1,28 @@
 <script lang="ts">
   // Right: legend, max utilisation, palette and view-mode toggles, solver status
-  // (design doc 画面構成). Section / X-ray views are stubs until T-303.
+  // (design doc 画面構成). Section / X-ray settings: ui/views/ViewControls (T-303).
+  import type { Axis } from '../game/grid.ts';
   import { PALETTES, type PaletteId } from '../render/colormap.ts';
   import { percent, sci } from './format.ts';
   import type { HudState, ViewMode } from './hudState.svelte.ts';
   import Legend from './Legend.svelte';
+  import ViewControls from './views/ViewControls.svelte';
+  import type { ViewSettings } from './views/viewSettings.svelte.ts';
 
   interface Props {
     hud: HudState;
     onPalette: (id: PaletteId) => void;
     onViewMode: (mode: ViewMode) => void;
+    views: ViewSettings;
+    onSectionAxis: (axis: Axis) => void;
   }
 
-  let { hud, onPalette, onViewMode }: Props = $props();
+  let { hud, onPalette, onViewMode, views, onSectionAxis }: Props = $props();
 
   const modes: { id: ViewMode; label: string; ready: boolean }[] = [
     { id: 'normal', label: '通常', ready: true },
-    { id: 'section', label: '断面', ready: false },
-    { id: 'xray', label: 'X線', ready: false },
+    { id: 'section', label: '断面', ready: true },
+    { id: 'xray', label: 'X線', ready: true },
   ];
   const over = $derived(hud.maxUtilization !== null && hud.maxUtilization > 1);
 </script>
@@ -51,6 +56,7 @@
       </button>
     {/each}
   </div>
+  <ViewControls {hud} settings={views} onAxis={onSectionAxis} />
 
   <div class="status" aria-live="polite">
     {#if hud.error}

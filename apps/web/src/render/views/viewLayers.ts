@@ -30,7 +30,7 @@ import {
 } from './visibility.ts';
 
 /** Opacity of X-ray ghost faces. */
-export const GHOST_OPACITY = 0.14;
+export const GHOST_OPACITY = 0.22;
 const OUTLINE_COLOR = 0xf0a23b;
 /** frame margin around the grid and offset towards the viewer, grid units */
 const OUTLINE_MARGIN = 0.25;
