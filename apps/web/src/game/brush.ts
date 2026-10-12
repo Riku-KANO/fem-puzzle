@@ -38,6 +38,11 @@ export interface BrushContext {
    * removed is not carved, so one drag shaves one layer instead of drilling through.
    */
   strokeRemoved?: ReadonlySet<number> | undefined;
+  /**
+   * Cells hidden by the current view (section: beyond the cut plane). They are never carved
+   * and count as empty for the surface test, so the cut face carves like any surface.
+   */
+  hidden?: ((element: number) => boolean) | undefined;
 }
 
 export interface BrushSelection {
@@ -59,15 +64,16 @@ export function brushSelect(
   const prot: number[] = [];
   const c: Vec3 = [0, 0, 0];
   for (const e of brushFootprint(g, cell, face, size)) {
-    if (!ctx.solid[e]) continue;
-    // neighbour across the hit face must be empty for the cell to be on the surface
+    if (!ctx.solid[e] || ctx.hidden?.(e)) continue;
+    // neighbour across the hit face must be empty (or hidden) for the cell to be on the surface
     c[0] = e % g.nx;
     c[1] = ((e - c[0]) / g.nx) % g.ny;
     c[2] = Math.floor(e / (g.nx * g.ny));
     c[axis] += sign;
     if (inBounds(g, c[0], c[1], c[2])) {
       const nb = cellIndex(g, c[0], c[1], c[2]);
-      if (ctx.solid[nb] || ctx.block?.[nb] || ctx.strokeRemoved?.has(nb)) continue;
+      const covered = ctx.solid[nb] || ctx.block?.[nb] || ctx.strokeRemoved?.has(nb);
+      if (covered && !ctx.hidden?.(nb)) continue;
     }
     (ctx.keep[e] ? prot : carve).push(e);
   }

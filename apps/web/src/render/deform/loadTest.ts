@@ -111,6 +111,8 @@ interface Show {
   centre: [number, number, number];
   jigs: JigTrack[];
   frame: TimelineFrame | null;
+  /** section mask the show was built with (a change of view ends the show) */
+  mask: Uint8Array | null;
 }
 
 export interface FrameStats {
@@ -212,6 +214,7 @@ export class LoadTest {
     const utilization = envelope(r.cases.map((c) => c.utilization)) ?? lc.utilization;
 
     const mask = this.sectionMask?.() ?? null;
+    const maskCopy = mask ? new Uint8Array(mask) : null;
     const flags = new Uint8Array(grid.n);
     for (let e = 0; e < grid.n; e++) flags[e] = solid[e] && (!mask || mask[e]) ? 1 : 0;
 
@@ -259,6 +262,7 @@ export class LoadTest {
       centre,
       jigs: this.trackJigs(lc.displacement),
       frame: null,
+      mask: maskCopy,
     };
     for (const o of this.hideWhilePlaying) {
       this.hidden.set(o, o.visible);
@@ -323,6 +327,10 @@ export class LoadTest {
     }
     const s = this.show;
     if (!s) return;
+    if (this.sectionChanged(s.mask)) {
+      this.cancel(); // the player moved the section: the show no longer matches the view
+      return;
+    }
     if (s.t0 === null) {
       s.t0 = nowMs;
       s.last = nowMs;
@@ -461,6 +469,14 @@ export class LoadTest {
       });
     }
     return out;
+  }
+
+  private sectionChanged(built: Uint8Array | null): boolean {
+    const now = this.sectionMask?.() ?? null;
+    if (now === null || built === null) return now !== built;
+    if (now.length !== built.length) return true;
+    for (let i = 0; i < now.length; i++) if (now[i] !== built[i]) return true;
+    return false;
   }
 
   private emit(next: LoadTestStatus): void {

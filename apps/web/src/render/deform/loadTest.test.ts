@@ -248,6 +248,16 @@ describe('load test (headless)', () => {
     lt.toggle({ current: true });
     expect(lt.view.shown.reduce((a, b) => a + b, 0)).toBe(24 * 8 * 2);
     expect(lt.view.quadCount).not.toBe(full);
+    lt.update(0);
+    expect(lt.active).toBe(true);
+    // moving the section (or leaving section view) ends the show
+    mask[0] = 0;
+    lt.update(16);
+    expect(lt.active).toBe(false);
+    lt.toggle({ current: true });
+    lt.sectionMask = () => null;
+    lt.update(32);
+    expect(lt.active).toBe(false);
     lt.dispose();
   });
 });

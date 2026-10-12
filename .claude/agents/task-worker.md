@@ -36,6 +36,12 @@ The orchestrator gives you a roster (task → agent id → branch). Follow
   paths — ask them. Contract changes go to `main` only.
 - Answer incoming questions promptly and briefly; record decisions in your task Log.
 
+## Shared resources
+
+- The Browser pane is shared by all workers: open your **own** tab (`tabs_create`) and pass its
+  `tabId` on every browser call; never navigate or close another worker's tab.
+- Dev servers: start them from your worktree on a non-default port, stop them when done.
+
 ## Report (your final message)
 
 - branch name and worktree path, commit list
