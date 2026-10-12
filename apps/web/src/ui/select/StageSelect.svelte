@@ -3,6 +3,7 @@
   // volume, benchmark badge and in-progress carve.
   import type { Campaign, ProgressHealth } from '../../game/progress/index.ts';
   import { percent } from '../format.ts';
+  import type { StageInfo } from './menuSnapshot.ts';
   import {
     cardAriaLabel,
     lockedWorldHint,
@@ -11,13 +12,6 @@
     storageWarning,
     worldSummary,
   } from './selectView.ts';
-
-  interface StageInfo {
-    title: string;
-    grid: readonly [number, number, number];
-    /** volume fraction of the saved in-progress carve, null = none */
-    inProgress: number | null;
-  }
 
   interface Props {
     campaign: Campaign;

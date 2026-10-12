@@ -6,6 +6,12 @@ export class HashRouter {
   route = $state<Route>({ kind: 'title' });
   /** one-shot message for the select screen (e.g. unknown stage id) */
   notice = $state<string | null>(null);
+  /**
+   * Runs synchronously before `route` changes, while the old screen is still current — e.g.
+   * flush the open stage's carve so the screen that mounts next reads it (T-315). Every
+   * change goes through here: `navigate`, back/forward and address-bar edits.
+   */
+  onBeforeChange: ((from: Route, to: Route) => void) | null = null;
 
   private readonly onHashChange = (): void => this.sync();
 
@@ -39,7 +45,13 @@ export class HashRouter {
 
   private sync(): void {
     const resolved = resolveRoute(this.win.location.hash, this.hasStage);
-    if (!sameRoute(resolved.route, this.route)) this.route = resolved.route;
+    if (!sameRoute(resolved.route, this.route)) {
+      try {
+        this.onBeforeChange?.(this.route, resolved.route);
+      } finally {
+        this.route = resolved.route;
+      }
+    }
     this.notice = resolved.notice;
     // Normalise unknown / missing-stage hashes so the address bar matches the screen.
     const canonical = formatRoute(resolved.route);

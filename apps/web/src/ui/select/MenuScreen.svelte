@@ -1,8 +1,11 @@
 <script lang="ts">
   // Everything outside a stage: title (#/) and stage select (#/select[/w<n>]).
-  // Records are read when this screen mounts, i.e. every time the player leaves a stage.
+  // Records are read when this screen mounts, i.e. every time the player leaves a stage; the
+  // App flushes the open stage's carve in `router.onBeforeChange`, before this mounts (T-315).
+  import { untrack } from 'svelte';
   import type { StageCatalogue } from '../../game/stages.ts';
-  import { buildCampaign, continueStageId, type ProgressStore } from '../../game/progress/index.ts';
+  import type { ProgressStore } from '../../game/progress/index.ts';
+  import { menuSnapshot } from './menuSnapshot.ts';
   import type { HashRouter } from './router.svelte.ts';
   import { initialWorld } from './selectView.ts';
   import StageSelect from './StageSelect.svelte';
@@ -17,23 +20,7 @@
   let { router, catalogue, progress }: Props = $props();
 
   // Snapshot per mount (records only change while a stage is open).
-  const snapshot = (() => {
-    const refs = catalogue.stages.map((e) => ({ id: e.stage.id, world: e.stage.world }));
-    const campaign = buildCampaign(refs, (id) => progress.record(id));
-    const info = new Map(
-      catalogue.stages.map((e) => [
-        e.stage.id,
-        {
-          title: e.stage.title,
-          grid: e.stage.grid,
-          inProgress: progress.loadCarve(e.stage.id)?.volume ?? null,
-        },
-      ]),
-    );
-    const fresh = progress.lastStage === null && Object.keys(progress.records()).length === 0;
-    const continueId = continueStageId(campaign, progress.lastStage);
-    return { campaign, info, continueId, fresh, health: progress.health };
-  })();
+  const snapshot = untrack(() => menuSnapshot(catalogue, progress));
 
   const route = $derived(router.route);
   const world = $derived(initialWorld(snapshot.campaign, route.kind === 'select' ? route.world : null));
