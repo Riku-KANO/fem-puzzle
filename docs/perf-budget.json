@@ -1,0 +1,348 @@
+{
+  "schema": 1,
+  "description": "Phase 0 performance budget (T-204), enforced by scripts/bench-gate.mjs (verify.sh full). Scenario: solid cantilever per grid, tol 1e-4, single thread; warm = set_solid(3x3 top-surface carve) + warm-started solve, median of 10 carves; load = setup + cold solve. Times in ms. Results and analysis: docs/perf-results.md. Edit limits by hand; refresh `baseline` with `node scripts/bench-gate.mjs --record`.",
+  "tol": 0.0001,
+  "requireMultigrid": true,
+  "limits": [
+    {
+      "name": "W1 warm carve",
+      "target": "wasm",
+      "grid": "24x8x4",
+      "precond": "multigrid",
+      "metric": "warmMedianMs",
+      "max": 100
+    },
+    {
+      "name": "W2 warm carve",
+      "target": "wasm",
+      "grid": "32x8x8",
+      "precond": "multigrid",
+      "metric": "warmMedianMs",
+      "max": 500
+    },
+    {
+      "name": "W3 warm carve",
+      "target": "wasm",
+      "grid": "32x12x12",
+      "precond": "multigrid",
+      "metric": "warmMedianMs",
+      "max": 500
+    },
+    {
+      "name": "W4/W5 warm carve (Gate 0)",
+      "target": "wasm",
+      "grid": "40x12x12",
+      "precond": "multigrid",
+      "metric": "warmMedianMs",
+      "max": 500
+    },
+    {
+      "name": "W4/W5 worst carve",
+      "target": "wasm",
+      "grid": "40x12x12",
+      "precond": "multigrid",
+      "metric": "warmMaxMs",
+      "max": 500
+    },
+    {
+      "name": "W4/W5 stage load",
+      "target": "wasm",
+      "grid": "40x12x12",
+      "precond": "multigrid",
+      "metric": "loadMs",
+      "max": 1000
+    }
+  ],
+  "regression": {
+    "description": "Fail when a metric exceeds baseline x ratio AND baseline + min-abs. Iterations are compared on any machine (deterministic); times only when the CPU model equals the baseline's.",
+    "iterMetrics": [
+      "coldIters",
+      "warmMedianIters"
+    ],
+    "iterRatio": 1.25,
+    "minAbsIters": 2,
+    "timeMetrics": [
+      "coldMs",
+      "warmMedianMs"
+    ],
+    "timeRatio": 2,
+    "minAbsMs": 5
+  },
+  "baseline": {
+    "native": {
+      "recorded": "2026-10-12",
+      "commit": "0954aa0",
+      "machine": {
+        "cpu": "Apple M5 Pro",
+        "os": "macos",
+        "arch": "aarch64"
+      },
+      "config": {
+        "tol": 0.0001,
+        "carves": 10,
+        "repeats": 3,
+        "seed": 42
+      },
+      "results": [
+        {
+          "grid": "24x8x4",
+          "requested": "jacobi",
+          "precond": "jacobi",
+          "levels": 0,
+          "setupMs": 0.07,
+          "coldMs": 12.75,
+          "coldIters": 138,
+          "warmMedianMs": 26.73,
+          "warmMaxMs": 27.13,
+          "warmMedianIters": 299
+        },
+        {
+          "grid": "24x8x4",
+          "requested": "multigrid",
+          "precond": "multigrid",
+          "levels": 2,
+          "setupMs": 1.32,
+          "coldMs": 2.99,
+          "coldIters": 10,
+          "warmMedianMs": 3.72,
+          "warmMaxMs": 3.97,
+          "warmMedianIters": 12
+        },
+        {
+          "grid": "32x8x8",
+          "requested": "jacobi",
+          "precond": "jacobi",
+          "levels": 0,
+          "setupMs": 0.09,
+          "coldMs": 43.55,
+          "coldIters": 182,
+          "warmMedianMs": 67.1,
+          "warmMaxMs": 86.48,
+          "warmMedianIters": 277.5
+        },
+        {
+          "grid": "32x8x8",
+          "requested": "multigrid",
+          "precond": "multigrid",
+          "levels": 2,
+          "setupMs": 3.9,
+          "coldMs": 8.06,
+          "coldIters": 10,
+          "warmMedianMs": 9.46,
+          "warmMaxMs": 10.42,
+          "warmMedianIters": 10
+        },
+        {
+          "grid": "32x12x12",
+          "requested": "jacobi",
+          "precond": "jacobi",
+          "levels": 0,
+          "setupMs": 0.19,
+          "coldMs": 104.99,
+          "coldIters": 193,
+          "warmMedianMs": 139.02,
+          "warmMaxMs": 149.09,
+          "warmMedianIters": 257
+        },
+        {
+          "grid": "32x12x12",
+          "requested": "multigrid",
+          "precond": "multigrid",
+          "levels": 3,
+          "setupMs": 8.06,
+          "coldMs": 21.5,
+          "coldIters": 11,
+          "warmMedianMs": 17.29,
+          "warmMaxMs": 20.56,
+          "warmMedianIters": 9
+        },
+        {
+          "grid": "40x12x12",
+          "requested": "jacobi",
+          "precond": "jacobi",
+          "levels": 0,
+          "setupMs": 0.21,
+          "coldMs": 158.86,
+          "coldIters": 234,
+          "warmMedianMs": 199.13,
+          "warmMaxMs": 228.79,
+          "warmMedianIters": 294.5
+        },
+        {
+          "grid": "40x12x12",
+          "requested": "multigrid",
+          "precond": "multigrid",
+          "levels": 3,
+          "setupMs": 8.15,
+          "coldMs": 24.8,
+          "coldIters": 11,
+          "warmMedianMs": 21.01,
+          "warmMaxMs": 25.07,
+          "warmMedianIters": 9
+        },
+        {
+          "grid": "60x20x20",
+          "requested": "jacobi",
+          "precond": "jacobi",
+          "levels": 0,
+          "setupMs": 0.73,
+          "coldMs": 1000.36,
+          "coldIters": 354,
+          "warmMedianMs": 900.89,
+          "warmMaxMs": 1409.95,
+          "warmMedianIters": 321
+        },
+        {
+          "grid": "60x20x20",
+          "requested": "multigrid",
+          "precond": "multigrid",
+          "levels": 3,
+          "setupMs": 38.16,
+          "coldMs": 105.28,
+          "coldIters": 11,
+          "warmMedianMs": 96.52,
+          "warmMaxMs": 132.34,
+          "warmMedianIters": 9
+        }
+      ]
+    },
+    "wasm": {
+      "recorded": "2026-10-12",
+      "commit": "0954aa0",
+      "machine": {
+        "cpu": "Apple M5 Pro",
+        "os": "darwin",
+        "arch": "arm64"
+      },
+      "config": {
+        "tol": 0.0001,
+        "carves": 10,
+        "repeats": 3,
+        "seed": 42,
+        "chunk": 64
+      },
+      "results": [
+        {
+          "grid": "24x8x4",
+          "requested": "jacobi",
+          "precond": "jacobi",
+          "levels": 0,
+          "setupMs": 0.14,
+          "coldMs": 7.8,
+          "coldIters": 138,
+          "warmMedianMs": 16.19,
+          "warmMaxMs": 17.8,
+          "warmMedianIters": 299
+        },
+        {
+          "grid": "24x8x4",
+          "requested": "multigrid",
+          "precond": "multigrid",
+          "levels": 2,
+          "setupMs": 2.39,
+          "coldMs": 1.99,
+          "coldIters": 10,
+          "warmMedianMs": 2.28,
+          "warmMaxMs": 2.54,
+          "warmMedianIters": 12
+        },
+        {
+          "grid": "32x8x8",
+          "requested": "jacobi",
+          "precond": "jacobi",
+          "levels": 0,
+          "setupMs": 0.16,
+          "coldMs": 24.89,
+          "coldIters": 182,
+          "warmMedianMs": 37.97,
+          "warmMaxMs": 51.54,
+          "warmMedianIters": 277.5
+        },
+        {
+          "grid": "32x8x8",
+          "requested": "multigrid",
+          "precond": "multigrid",
+          "levels": 2,
+          "setupMs": 5.24,
+          "coldMs": 4.65,
+          "coldIters": 10,
+          "warmMedianMs": 6.48,
+          "warmMaxMs": 7.28,
+          "warmMedianIters": 10
+        },
+        {
+          "grid": "32x12x12",
+          "requested": "jacobi",
+          "precond": "jacobi",
+          "levels": 0,
+          "setupMs": 0.23,
+          "coldMs": 62.07,
+          "coldIters": 192,
+          "warmMedianMs": 77.94,
+          "warmMaxMs": 85.01,
+          "warmMedianIters": 257
+        },
+        {
+          "grid": "32x12x12",
+          "requested": "multigrid",
+          "precond": "multigrid",
+          "levels": 3,
+          "setupMs": 8.45,
+          "coldMs": 10.55,
+          "coldIters": 11,
+          "warmMedianMs": 9.35,
+          "warmMaxMs": 10.49,
+          "warmMedianIters": 9
+        },
+        {
+          "grid": "40x12x12",
+          "requested": "jacobi",
+          "precond": "jacobi",
+          "levels": 0,
+          "setupMs": 0.26,
+          "coldMs": 91.99,
+          "coldIters": 234,
+          "warmMedianMs": 117.28,
+          "warmMaxMs": 157.96,
+          "warmMedianIters": 294.5
+        },
+        {
+          "grid": "40x12x12",
+          "requested": "multigrid",
+          "precond": "multigrid",
+          "levels": 3,
+          "setupMs": 11.45,
+          "coldMs": 15.14,
+          "coldIters": 11,
+          "warmMedianMs": 14.08,
+          "warmMaxMs": 16.64,
+          "warmMedianIters": 9
+        },
+        {
+          "grid": "60x20x20",
+          "requested": "jacobi",
+          "precond": "jacobi",
+          "levels": 0,
+          "setupMs": 0.96,
+          "coldMs": 632.56,
+          "coldIters": 354,
+          "warmMedianMs": 667.19,
+          "warmMaxMs": 895.03,
+          "warmMedianIters": 321
+        },
+        {
+          "grid": "60x20x20",
+          "requested": "multigrid",
+          "precond": "multigrid",
+          "levels": 3,
+          "setupMs": 51.94,
+          "coldMs": 63.55,
+          "coldIters": 11,
+          "warmMedianMs": 54.17,
+          "warmMaxMs": 64.83,
+          "warmMedianIters": 9
+        }
+      ]
+    }
+  }
+}
