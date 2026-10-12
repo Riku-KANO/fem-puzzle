@@ -76,6 +76,12 @@ fn active_set_follows_face_connectivity_to_supports() {
 }
 
 #[test]
+fn solver_is_send() {
+    fn assert_send<T: Send>() {}
+    assert_send::<Solver>();
+}
+
+#[test]
 fn non_domain_cells_cannot_become_solid() {
     let mut solid = vec![true; 8];
     solid[7] = false;
@@ -227,6 +233,9 @@ fn unsupported_rigid_modes_terminate() {
     let st = solver.solve();
     assert!(st.done);
     assert!(st.iterations <= 2000);
+    // A mechanism does not converge; the iterate stays finite (and huge).
+    assert!(!solver.converged());
+    assert!(solver.displacement(0).iter().all(|v| v.is_finite()));
 }
 
 #[test]
