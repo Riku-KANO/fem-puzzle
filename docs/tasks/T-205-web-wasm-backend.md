@@ -1,7 +1,7 @@
 ---
 id: T-205
 title: Web WASM backend — real solver in the worker with progressive display
-status: review
+status: done
 phase: 0
 depends: [T-102, T-202]
 owns:
