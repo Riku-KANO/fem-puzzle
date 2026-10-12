@@ -1,7 +1,7 @@
 ---
 id: T-312
 title: Multigrid review follow-ups — odd-grid fallback, symmetry guards, rebuild cost, tests
-status: review
+status: done
 phase: 1
 depends: [T-201]
 owns:
