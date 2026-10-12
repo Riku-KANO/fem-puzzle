@@ -44,7 +44,7 @@
 <nav class="game-menu" aria-label="ゲームメニュー">
   <button onclick={onSelect} title="ステージ選択へ(削った形は自動で保存されます)">← ステージ選択</button>
   <button class:confirm={confirming} onclick={restart} title="削った形を捨てて最初からやり直す">
-    {confirming ? 'もう一度押すとリセット' : '最初から'}
+    {confirming ? '本当に最初から?' : '最初から'}
   </button>
   {#if showResume}
     <span class="note" role="status">前回の続きから再開しました</span>
