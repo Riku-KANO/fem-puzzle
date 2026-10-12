@@ -45,14 +45,25 @@ blender_run() {
     grep '^\[assets\]' "$LOG" || true
   else
     grep '^\[assets\]' "$LOG" || true
-    echo "── blender failed (last 40 lines of the log) ──" >&2
-    tail -n 40 "$LOG" >&2
+    if ! grep -q 'CHECK FAIL' "$LOG"; then
+      echo "── blender failed (last 40 lines of the log) ──" >&2
+      tail -n 40 "$LOG" >&2
+    fi
     return 1
+  fi
+}
+
+verify_three() {
+  if command -v node >/dev/null 2>&1; then
+    node "$HERE/verify_three.mjs" "$ROOT/apps/web"
+  else
+    echo "[three] skipped: node not found"
   fi
 }
 
 if [ "$MODE" = check ]; then
   blender_run --out "$TMP/out" --check-against "$OUT"
+  verify_three
   exit 0
 fi
 
@@ -74,4 +85,5 @@ if [ "$PREVIEWS" = 1 ]; then
 fi
 
 python3 "$HERE/glbstat.py" "$OUT"/*.glb
+verify_three
 echo "all files in ${OUT#"$ROOT"/}: $(find "$OUT" -type f -exec cat {} + | wc -c | tr -d ' ') bytes (budget 1500000)"
