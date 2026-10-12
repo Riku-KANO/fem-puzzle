@@ -221,6 +221,23 @@ describe('ResultSession', () => {
     expect(overlayIn(domain)).toBeUndefined();
   });
 
+  it('reads the stored best before onClear records the new one', () => {
+    const { game } = fakeGame(plate(true), benchFlags(), 0.9);
+    const session = new ResultSession();
+    let stored: { stars: number; volumeFraction: number } | null = { stars: 1, volumeFraction: 0.7 };
+    const asked: string[] = [];
+    session.bestOf = (id) => (asked.push(id), stored);
+    session.onClear = (c) => {
+      stored = { stars: c.stars, volumeFraction: c.volumeFraction };
+    };
+    session.open(game, openGate);
+    expect(asked).toEqual(['plate']);
+    expect(session.previousBest).toEqual({ stars: 1, volumeFraction: 0.7 });
+    expect(stored).toEqual({ stars: 3, volumeFraction: 0.4 });
+    session.close();
+    expect(session.previousBest).toBeNull();
+  });
+
   it('without a benchmark the overlay cannot be turned on', () => {
     const { game, domain } = fakeGame(plate(false), benchFlags(), 0.9);
     const session = new ResultSession();

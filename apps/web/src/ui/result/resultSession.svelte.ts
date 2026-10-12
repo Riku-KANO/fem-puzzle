@@ -7,6 +7,7 @@ import { decodeBitmask, elementCount, type Stage } from '@stress-carve/protocol'
 import { makeGrid } from '../../game/grid.ts';
 import { submit, type StageClear, type Submission, type SubmitGateInput, type SubmitSource } from '../../game/judge/index.ts';
 import { BenchmarkOverlay, type OverlayHost, type OverlayMode } from './benchmarkOverlay.ts';
+import type { PreviousBest } from './resultText.ts';
 
 /** What the result screen needs from the 3D view (structurally `StageScene`). */
 export interface ResultView extends OverlayHost {
@@ -31,8 +32,12 @@ export class ResultSession {
   overlay = $state<OverlayMode>('off');
   /** the camera is turning around the cleared design */
   spinning = $state(false);
+  /** the stored best of this stage as it was *before* this submission (for 自己ベスト更新) */
+  previousBest = $state.raw<PreviousBest | null>(null);
   /** called once per passed submission (T-304 stores records) */
   onClear: ((clear: StageClear) => void) | null = null;
+  /** stored best for a stage id (T-304), read before `onClear` records the new one */
+  bestOf: ((stageId: string) => PreviousBest | null) | null = null;
 
   private bench: BenchmarkOverlay | null = null;
   private cleanup: (() => void)[] = [];
@@ -48,6 +53,7 @@ export class ResultSession {
     const s = submit(game.controller, gate);
     if (!s) return null;
     this.close();
+    this.previousBest = this.bestOf?.(game.controller.state.stage.id) ?? null;
     this.submission = s;
     this.overlayTouched = false;
     this.bench = buildOverlay(game.scene, game.controller.state.stage);
@@ -70,11 +76,13 @@ export class ResultSession {
     this.overlay = 'off';
     this.spinning = false;
     this.submission = null;
+    this.previousBest = null;
   }
 
   dispose(): void {
     this.close();
     this.onClear = null;
+    this.bestOf = null;
   }
 
   // --- internals ------------------------------------------------------------

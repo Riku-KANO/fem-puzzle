@@ -22,12 +22,15 @@
     targets: Targets;
     /** the latest result still describes the submitted design; false closes the screen */
     current: boolean;
+    /** overrides `session.previousBest` (the best read via `session.bestOf` before recording) */
     previousBest?: PreviousBest | null;
     onNext?: () => void;
     onSelect?: () => void;
   }
 
-  let { session, targets, current, previousBest = null, onNext, onSelect }: Props = $props();
+  let { session, targets, current, previousBest: bestProp = null, onNext, onSelect }: Props = $props();
+
+  const previousBest = $derived(bestProp ?? session.previousBest);
 
   const j = $derived(session.submission?.judgement ?? null);
   const bench = $derived(j?.benchmark ? benchmarkText(j.benchmark, j.passed) : null);
