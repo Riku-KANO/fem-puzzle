@@ -5,19 +5,20 @@
 import type { FullResult, Reporter, TestCase, TestResult } from '@playwright/test/reporter';
 
 export default class SkipReasons implements Reporter {
-  private readonly skipped: string[] = [];
+  /** one line per skipped test (deduplicated across --repeat-each) */
+  private readonly skipped = new Set<string>();
 
   onTestEnd(test: TestCase, result: TestResult): void {
     if (result.status !== 'skipped') return;
     const note = test.annotations.find((a) => a.type === 'skip' || a.type === 'fixme');
     const reason = `${note?.type === 'fixme' ? '[fixme] ' : ''}${note?.description ?? 'no reason given'}`;
-    this.skipped.push(`  - ${test.titlePath().slice(1).join(' › ')}: ${reason}`);
+    this.skipped.add(`  - ${test.titlePath().slice(1).join(' › ')}: ${reason}`);
   }
 
   onEnd(result: FullResult): void {
     void result;
-    if (this.skipped.length === 0) return;
-    console.log(`\nSkipped (${this.skipped.length}):\n${this.skipped.join('\n')}`);
+    if (this.skipped.size === 0) return;
+    console.log(`\nSkipped (${this.skipped.size}):\n${[...this.skipped].join('\n')}`);
   }
 
   printsToStdio(): boolean {

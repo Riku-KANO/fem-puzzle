@@ -181,20 +181,38 @@ test.describe('campaign (mock backend)', () => {
     expect(errors).toEqual([]);
   });
 
+  // Run it with E2E_RUN_FIXME=1 (fails deterministically until the bug is fixed).
   test('leaving right after a carve shows 途中 on the select screen', async ({ page }) => {
     test.fixme(
-      true,
+      !process.env.E2E_RUN_FIXME,
       'known bug (T-313 log): leaving within the 500 ms autosave interval saves the carve on close, ' +
         'but the select screen snapshotted the records before that — 途中 shows only after a reload',
     );
-    const s0 = await openStage(page, STAGE_ID, 'mock');
+    await openStage(page, STAGE_ID, 'mock');
     await skipTutorial(page);
     await selectBrush(page, 5);
-    await brushStrokes(page, slotStrokes([3]));
-    const s1 = await waitForResultAfter(page, s0.seq);
-    await backToSelect(page).click();
+    // carve and leave in one task, so the autosave interval cannot run in between
+    const volume = await page.evaluate((strokes) => {
+      const s = window.__stressCarve;
+      if (!s) throw new Error('window.__stressCarve missing');
+      const [nx, ny] = s.controller.state.stage.grid;
+      for (const { cell, face } of strokes) {
+        const element = cell[0] + nx * (cell[1] + ny * cell[2]);
+        s.controller.strokeStart({ element, cell, face, t: 0, point: cell });
+        s.controller.strokeEnd();
+      }
+      const v = s.controller.state.volumeFraction;
+      const back = [...document.querySelectorAll('nav[aria-label="ゲームメニュー"] button')].find((b) =>
+        b.textContent?.includes('ステージ選択'),
+      );
+      if (!(back instanceof HTMLButtonElement)) throw new Error('← ステージ選択 not found');
+      back.click();
+      return v;
+    }, slotStrokes([3]));
     await expectScreen(page, 'select');
     expect(await savedCarve(page, STAGE_ID), 'saved on close').not.toBeNull();
-    await expect(stageCard(page, '1-1')).toHaveAccessibleName(new RegExp(`途中 体積率 ${percent1(s1.volume)}`));
+    await expect(stageCard(page, '1-1')).toHaveAccessibleName(new RegExp(`途中 体積率 ${percent1(volume)}`), {
+      timeout: 2_000,
+    });
   });
 });
