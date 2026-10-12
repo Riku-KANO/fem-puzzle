@@ -6,6 +6,7 @@
   import { untrack } from 'svelte';
   import type { BrushSize } from './game/brush.ts';
   import { startGame, type GameSession } from './game/boot.ts';
+  import { submitGate } from './game/judge/index.ts';
   import {
     browserRunnerEnv,
     buildCampaign,
@@ -25,6 +26,8 @@
   import StagePanel from './ui/StagePanel.svelte';
   import Toast from './ui/Toast.svelte';
   import Toolbar from './ui/Toolbar.svelte';
+  import ResultScreen from './ui/result/ResultScreen.svelte';
+  import { ResultSession } from './ui/result/resultSession.svelte.ts';
   import GameMenu from './ui/select/GameMenu.svelte';
   import MenuScreen from './ui/select/MenuScreen.svelte';
   import { HashRouter } from './ui/select/router.svelte.ts';
@@ -41,6 +44,8 @@
   });
   const stage = $derived((entry ?? catalogue.stages[0]!).stage);
   const hud = new HudState();
+  const result = new ResultSession();
+  const gate = $derived(submitGate(hud));
   const thinWalls = new ThinWallHud();
   let viewport: HTMLDivElement;
   let game = $state.raw<GameSession | null>(null);
@@ -59,11 +64,20 @@
     if (!current) return;
     untrack(() => bindSession(runner.open(current.stage)));
     return () => {
+      result.close(); // before the session (and its scene) is disposed
       thinWalls.detach();
       runner.close();
       game = null;
     };
   });
+
+  // Passed submissions go to the local records; the previous best is read first (自己ベスト).
+  result.onClear = (c) => actions.clear(c);
+  result.bestOf = (id) => {
+    const r = progress.record(id);
+    return r ? { stars: r.stars, volumeFraction: r.volume } : null;
+  };
+  $effect(() => () => result.dispose());
 
   $effect(() => {
     document.documentElement.dataset.screen = entry ? 'stage' : screenOf(router.route);
@@ -82,9 +96,13 @@
     viewMode: (mode: ViewMode) => {
       hud.viewMode = mode; // section / X-ray rendering: T-303
     },
+    submit: () => {
+      if (game) result.open(game, hud);
+    },
     // Campaign (T-304). `clear`/`next`/`select` are the hooks for the result screen (T-301).
     select: () => router.navigate({ kind: 'select', world: stage.world }),
     restart: () => {
+      result.close();
       thinWalls.detach();
       const session = runner.restart();
       if (session) bindSession(session);
@@ -129,12 +147,32 @@
       <StagePanel title={stage.title} world={stage.world} targets={stage.targets} {hud} />
       <ThinWallBadge hud={thinWalls} />
     </div>
+    {#if result.submission}
+      <div class="result-slot">
+        <ResultScreen
+          session={result}
+          targets={stage.targets}
+          current={hud.resultCurrent}
+          onNext={actions.next}
+          onSelect={actions.select}
+        />
+      </div>
+    {/if}
     <div class="right">
       <SidePanel {hud} onPalette={actions.palette} onViewMode={actions.viewMode} />
     </div>
     <div class="bottom">
       <Toast {hud} />
-      <Toolbar {hud} onBrush={actions.brush} onUndo={actions.undo} onRedo={actions.redo} />
+      <Toolbar
+        {hud}
+        onBrush={actions.brush}
+        onUndo={actions.undo}
+        onRedo={actions.redo}
+        canSubmit={gate.enabled && !result.submission}
+        submitTitle={gate.reason}
+        submitHint={gate.problem}
+        onSubmit={actions.submit}
+      />
     </div>
   </div>
 </main>
@@ -168,6 +206,13 @@
     position: absolute;
     top: 16px;
     left: 16px;
+  }
+  .result-slot {
+    /* over the stage panel (the card repeats its volume / targets), leaves the model visible */
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    z-index: 1;
   }
   .right {
     position: absolute;

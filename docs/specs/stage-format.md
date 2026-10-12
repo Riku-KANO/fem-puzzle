@@ -81,5 +81,7 @@ A stage is a single JSON file (`stages/<id>.json`). Source definitions live in
 - *Connectivity*: 6-neighbour (face) adjacency over solid voxels. Every load cell must
   be in a component that contains a supported cell (see Support). Solid components with no
   support are "floating": excluded from analysis and dropped as debris.
+- *Keep intact*: every protected cell (keep ∪ supported ∪ load cells) stays solid **and** in a
+  component connected to a supported cell — a keep pillar cut loose from the structure fails.
 - *Strength*: max von Mises utilisation over solid, non-keep voxels ≤ 1.
 - *Stiffness* (optional): max load-point displacement ≤ `maxDisplacement`.

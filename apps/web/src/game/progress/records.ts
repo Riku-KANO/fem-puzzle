@@ -195,6 +195,9 @@ export class ProgressStore {
   /**
    * Read-modify-write: re-read the stored doc first so another tab's records are not lost,
    * then apply `mutate` to it and to the cache. Returns whether it was persisted.
+   * Policy is "never lose a clear": records this page knows are merged back in, so records
+   * deleted elsewhere while this page is open return on its next write (`resetAll` here
+   * clears the cache too).
    */
   private update(mutate: (doc: ProgressDoc) => void): boolean {
     const fresh = this.doc.load();
