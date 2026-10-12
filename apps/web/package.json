@@ -12,6 +12,7 @@
     "e2e": "playwright test"
   },
   "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.21.0",
     "@stress-carve/protocol": "workspace:*",
     "three": "^0.186.1"
   },

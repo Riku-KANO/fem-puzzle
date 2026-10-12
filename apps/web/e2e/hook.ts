@@ -48,6 +48,13 @@ export interface E2EHook {
       view: { section: { axis: number; cut: number; flip: boolean } | null; xray: number | null };
       sectionMask: Uint8Array | null;
     };
+    /** T-310 workshop environment + debris (render/env/workshop.ts) */
+    workshop: {
+      /** the glTF bench / room / jigs replaced the placeholders */
+      readonly envReady: boolean;
+      loadJigs(): unknown[];
+      debris: { readonly stats: E2EDebrisStats };
+    };
     /** T-302 load test */
     loadTest: {
       readonly active: boolean;
@@ -56,6 +63,24 @@ export interface E2EHook {
       freezeAt: number | null;
     };
   };
+}
+
+/** `scene.workshop.debris.stats` (render/env/debris/debris.ts `DebrisStats`), the fields specs read. */
+export interface E2EDebrisStats {
+  mode: 'physics' | 'fade' | 'off';
+  ready: boolean;
+  failed: boolean;
+  /** chips simulated now */
+  live: number;
+  queued: number;
+  /** chips drawn in the static pile */
+  pile: number;
+  spawned: number;
+  /** cumulative: settled into the pile / shrank away / fell off */
+  piled: number;
+  faded: number;
+  lost: number;
+  liveCap: number;
 }
 
 /** Compile-time guard: the real session must satisfy the hook shape. */
