@@ -101,7 +101,11 @@ mod tests {
     #[test]
     fn empty_null_and_braces_give_defaults() {
         for json in ["", "  ", "null", "{}", " { } "] {
-            assert_eq!(parse_options(json), Ok(SessionOptions::default()), "{json:?}");
+            assert_eq!(
+                parse_options(json),
+                Ok(SessionOptions::default()),
+                "{json:?}"
+            );
         }
         let d = SessionOptions::default();
         assert_eq!(d.tol, 1e-4);
