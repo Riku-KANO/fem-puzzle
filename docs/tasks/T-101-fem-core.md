@@ -1,7 +1,7 @@
 ---
 id: T-101
 title: FEM core — Hex8, problem setup, matrix-free Jacobi-PCG, stress, connectivity
-status: review
+status: done
 phase: 0
 depends: [T-002]
 owns:
@@ -145,3 +145,20 @@ a pluggable component (e.g. a `trait Precond { fn rebuild(&mut self, op: &Operat
     spec/crate. (3) Possibly tighten "supported" for `cells` supports to the listed
     cells only (spec change). (4) T-401: SIMD kernel; `Operator::apply` is the hot loop.
   - No `unsafe`; no new dependencies.
+- 2026-10-12 (T-101 review fixes, after review verdict APPROVE): merged main (contract
+  fixes 27fa266 / c395fdf).
+  - `Problem::supported` now comes from `Stage::supported_cells()`: the listed support
+    cells, or every initially solid cell on a face-only support's face. A cell that merely
+    shares a fixed node is no longer supported (this replaces the "≥ 1 fixed node" bullet
+    above). Active = solid ∧ 6-connected to a supported cell, unchanged.
+  - `keep` = `Stage::effective_keep()`, which now includes face-support root cells, so the
+    clamped wall layer is excluded from judging. `judged_utilization_excludes_keep_cells`
+    asserts this, and the face-support unit test checks `keep` on the root layer.
+  - New test `edge_contact_does_not_connect_loads_to_a_cell_support` (reviewer probe:
+    6×1×2, y- clamped cell (0,0,0), carve (2,0,0)+(1,0,1), load ±y at x = 5 ⇒
+    `loads_connected() == false`, floating = far part). It also covers a variant where
+    (1,0,1) shares a fixed node with the support cell but is only edge-adjacent: inactive.
+  - Mechanism test: `max_iters: 1_000_000`, asserts `iterations < 500`. Stall detection
+    stops at 53.
+  - Benchmark numbers unchanged. Follow-ups (2) and (3) above are resolved by main's
+    contract fix.

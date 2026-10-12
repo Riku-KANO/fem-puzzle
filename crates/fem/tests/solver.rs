@@ -81,6 +81,63 @@ fn solver_is_send() {
     assert_send::<Solver>();
 }
 
+/// Reviewer probe: the far part touches the supported side only along an edge, so the
+/// load is not connected (6-neighbour rule), and a cell sharing a fixed node with the
+/// support cell is not itself supported.
+#[test]
+fn edge_contact_does_not_connect_loads_to_a_cell_support() {
+    let support = Support {
+        face: Face::YNeg,
+        fix: "xyz".into(),
+        cells: Some(vec![[0, 0, 0]]),
+    };
+    for fy in [1.0, -1.0] {
+        let s = stage(
+            [6, 1, 2],
+            &[true; 12],
+            vec![support.clone()],
+            vec![Load {
+                cells: vec![[5, 0, 0], [5, 0, 1]],
+                force: [0.0, 100.0 * fy, 0.0],
+            }],
+        );
+        let p = Problem::from_stage(&s).unwrap();
+        let g = p.grid;
+        let mut solver = Solver::new(p, SolverOptions::default());
+        solver.solve();
+        assert!(solver.loads_connected());
+
+        // Carve (2,0,0) and (1,0,1): (2,0,1) meets (1,0,0) only along an edge.
+        solver.set_solid(&[
+            (g.element_index(2, 0, 0), false),
+            (g.element_index(1, 0, 1), false),
+        ]);
+        let st = solver.solve();
+        assert!(st.done);
+        assert!(!solver.loads_connected());
+        let floating: Vec<usize> = (0..g.elements())
+            .filter(|&e| {
+                let [x, _, z] = g.element_coords(e);
+                (x == 2 && z == 1) || x >= 3
+            })
+            .collect();
+        assert_eq!(solver.floating(), floating);
+        assert!(solver.displacement(0).iter().all(|v| v.is_finite()));
+
+        // Variant: (1,0,1) shares the fixed node (1,0,1) with the support cell but is only
+        // edge-adjacent to it once (1,0,0) and (0,0,1) are gone, so it is not supported.
+        let mut v = Solver::new(solver.problem().clone(), SolverOptions::default());
+        v.set_solid(&[
+            (g.element_index(1, 0, 0), false),
+            (g.element_index(0, 0, 1), false),
+        ]);
+        v.solve();
+        assert!(!v.loads_connected());
+        assert!(!v.active()[g.element_index(1, 0, 1)]);
+        assert!(v.active()[g.element_index(0, 0, 0)]);
+    }
+}
+
 #[test]
 fn non_domain_cells_cannot_become_solid() {
     let mut solid = vec![true; 8];
@@ -234,13 +291,14 @@ fn unsupported_rigid_modes_terminate() {
     let mut solver = Solver::new(
         Problem::from_stage(&s).unwrap(),
         SolverOptions {
-            max_iters: 2000,
+            max_iters: 1_000_000,
             ..SolverOptions::default()
         },
     );
     let st = solver.solve();
     assert!(st.done);
-    assert!(st.iterations <= 2000);
+    // Stall detection must stop it long before `max_iters` (measured: 53 iterations).
+    assert!(st.iterations < 500, "{st:?}");
     // A mechanism does not converge; the iterate stays finite (and huge).
     assert!(!solver.converged());
     assert!(solver.displacement(0).iter().all(|v| v.is_finite()));
@@ -315,8 +373,15 @@ fn judged_utilization_excludes_keep_cells() {
         .map(|e| util[e])
         .fold(0.0, f64::max);
     assert_eq!(judged, expect);
-    // The clamped root (not keep: face supports without cells) is the most stressed.
     assert!(judged > 0.0);
+    // The clamped root layer (supported cells of a face support) is keep, so it is
+    // excluded from judging (`expect` above already skips keep cells).
+    for (e, &u) in util.iter().enumerate() {
+        if g.element_coords(e)[0] == 0 {
+            assert!(solver.problem().keep[e], "root element {e}");
+            assert!(u > 0.0);
+        }
+    }
     let mut vm = vec![0.0; g.elements()];
     solver.von_mises(0, &mut vm);
     let allowable = solver.problem().material.allowable;

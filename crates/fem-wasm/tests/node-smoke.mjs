@@ -314,7 +314,8 @@ function cantileverSuite() {
     throwsMsg(() => new Session('{', OPTIONS), /stage/i);
     throwsMsg(() => new Session(json, '{"tol":-1}'), /tol/);
     throwsMsg(() => new Session(json, '{"preconditioner":"ilu"}'), /preconditioner/);
-    throwsMsg(() => s.set_solid(Uint32Array.of(0, s.elements), false), /out of range/);
+    // (1,1,1) is carvable; element 0 sits in the clamped wall layer, which is protected.
+    throwsMsg(() => s.set_solid(Uint32Array.of(elemIndex(g, [1, 1, 1]), s.elements), false), /out of range/);
     const loadCell = elemIndex(g, stage.loads[0].cells[0]);
     throwsMsg(() => s.set_solid(Uint32Array.of(loadCell), false), /protected/);
     throwsMsg(() => s.utilization(1), /case/);

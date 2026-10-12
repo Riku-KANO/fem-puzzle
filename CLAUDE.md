@@ -32,6 +32,8 @@ bash scripts/build-stages.sh    # Blender → stages/*.json   (BLENDER env overr
 ```
 
 Blender: `/Applications/Blender.app/Contents/MacOS/Blender` (not on PATH).
+Cloudflare: use the `cf` CLI (npm `cf`), **never Wrangler**; target is Workers + Static Assets
+(docs/adr/0002-cloudflare-cf-cli.md). Never deploy or log in without the user asking.
 
 ## Working rules
 

@@ -5,6 +5,7 @@ import {
   elementCoords,
   elementIndex,
   encodeBitmask,
+  supportedCells,
   validateStage,
   type Stage,
 } from '../src/index.ts';
@@ -64,6 +65,20 @@ describe('stage', () => {
     expect(keep[0]).toBe(1);
     expect(keep[elementIndex(s.grid, 3, 0, 1)]).toBe(1);
     expect(keep[elementIndex(s.grid, 1, 1, 1)]).toBe(0);
+  });
+
+  it('treats every solid cell on a face-only support face as supported and protected', () => {
+    const s = sample();
+    const supported = supportedCells(s);
+    const keep = effectiveKeep(s);
+    for (let z = 0; z < 2; z++) {
+      for (let y = 0; y < 2; y++) {
+        expect(supported[elementIndex(s.grid, 0, y, z)]).toBe(1);
+        expect(keep[elementIndex(s.grid, 0, y, z)]).toBe(1);
+        expect(supported[elementIndex(s.grid, 1, y, z)]).toBe(0);
+      }
+    }
+    expect(supported.reduce((a, b) => a + b, 0)).toBe(4);
   });
 
   it('rejects loads outside the solid', () => {

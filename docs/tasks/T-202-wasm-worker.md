@@ -1,7 +1,7 @@
 ---
 id: T-202
 title: WASM binding (Session) for the browser worker
-status: review
+status: done
 phase: 0
 depends: [T-101]
 owns:
@@ -81,3 +81,14 @@ Expose the solver to the browser through the `Session` API in
   so MG needs no change here); (2) T-204 can reuse the smoke test's cantilever generator
   and bench loop for `scripts/bench-wasm.mjs`; (3) if bundle size matters later, the bulk
   is serde_json + core::fmt (not investigated, 92 KiB gzip seems fine).
+
+### 2026-10-12 — re-verified on T-101 final
+- **T-101 commit last merged: `952ba34`** (T-101 final, status review; no signature
+  changes since `8d44d07`, only warm-start rescaling + `set_density` guard). No binding
+  changes needed. `pnpm build:wasm`, `cargo test -p fem-wasm` (14), the smoke test (with
+  and without T-103 stages) and `verify.sh fast` all green.
+- New numbers: wasm 211.0 KiB raw / 91.9 KiB gzip; 24×8×4 cold 7.5 ms (138 it), carve
+  15.5 / 16.3 ms (299 it); 40×12×12 cold 88.2 ms (234 it), carve 122.7 / 144.8 ms (≈295 it).
+- Note from T-101: mechanisms (structure left on a roller only) stop with `done = true`,
+  not converged, finite but huge `u` — T-205 should judge `converged = done &&
+  rel_residual <= tol` as stated above.
