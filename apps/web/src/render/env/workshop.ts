@@ -67,6 +67,7 @@ export class Workshop {
   private frame = 0;
 
   constructor(private readonly opts: WorkshopOptions) {
+    const tCtor = performance.now();
     const { state, renderer } = opts;
     this.layout = computeLayout(state.stage);
     this.fx =
@@ -129,7 +130,11 @@ export class Workshop {
       envMap: () => this.loaded.then(() => this.envTexture),
     });
 
-    this.loaded = this.fx.env ? this.loadEnvironment() : Promise.resolve(false);
+    // start loading in the next task: keep the (already busy) boot task lean
+    this.loaded = this.fx.env
+      ? new Promise<void>((resolve) => setTimeout(resolve, 0)).then(() => !this.disposed && this.loadEnvironment())
+      : Promise.resolve(false);
+    measure('env:ctor', tCtor, performance.now());
   }
 
   // --- scene hooks -----------------------------------------------------------------
@@ -272,9 +277,8 @@ export class Workshop {
 
     measure('env:instantiate', t1, performance.now());
     // unlit baked surfaces render as authored; lit jigs get a room environment for metals
-    const t2 = performance.now();
-    const env = this.environmentMap();
-    measure('env:pmrem', t2, performance.now());
+    const env = await this.environmentMap();
+    if (this.disposed) return false;
     for (const m of materials.values()) {
       if (m instanceof THREE.MeshBasicMaterial) m.toneMapped = false;
       if (m instanceof THREE.MeshStandardMaterial) {
@@ -315,17 +319,31 @@ export class Workshop {
     return true;
   }
 
-  private environmentMap(): THREE.Texture | null {
+  /**
+   * RoomEnvironment → PMREM for the metal jigs, in two tasks of ~25 ms each instead of one
+   * ~50 ms `fromScene`: render the room into a cube target, yield, then prefilter it.
+   */
+  private async environmentMap(): Promise<THREE.Texture | null> {
     if (this.envTexture) return this.envTexture;
+    const renderer = this.opts.renderer;
+    const room = new RoomEnvironment();
+    const cube = new THREE.WebGLCubeRenderTarget(128, { type: THREE.HalfFloatType });
     try {
-      const pmrem = new THREE.PMREMGenerator(this.opts.renderer);
-      const room = new RoomEnvironment();
-      // sigma 0: the room is soft already; the extra blur pass costs ~10 ms on the main thread
-      this.envTexture = pmrem.fromScene(room, 0).texture;
-      room.dispose();
+      const t0 = performance.now();
+      new THREE.CubeCamera(0.1, 100, cube).update(renderer, room);
+      measure('env:room-cube', t0, performance.now());
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      if (this.disposed) return null;
+      const t1 = performance.now();
+      const pmrem = new THREE.PMREMGenerator(renderer);
+      this.envTexture = pmrem.fromCubemap(cube.texture).texture;
       pmrem.dispose();
+      measure('env:pmrem', t1, performance.now());
     } catch (err) {
       console.warn('[workshop] no environment map:', err);
+    } finally {
+      cube.dispose();
+      room.dispose();
     }
     return this.envTexture;
   }

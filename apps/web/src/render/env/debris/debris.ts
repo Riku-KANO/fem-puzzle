@@ -213,7 +213,13 @@ export class DebrisFx {
       stepMsMax: 0,
       updateMsMax: 0,
     };
-    if (opts.mode !== 'off') void opts.prepare?.(this.ghosts.sample());
+    // ghost shader warm-up in its own task, off the boot task
+    if (opts.mode !== 'off' && opts.prepare) {
+      const prepare = opts.prepare;
+      setTimeout(() => {
+        if (!this.disposed) void prepare(this.ghosts.sample());
+      }, 0);
+    }
     if (opts.mode === 'physics') {
       this.preloadTimer = setTimeout(() => void this.init(), opts.preloadDelayMs ?? 400);
     }
