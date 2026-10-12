@@ -28,9 +28,10 @@ interface Chunk {
 export const timeUniform = { value: 0 };
 
 /**
- * Lambert material with two per-vertex flags (`aFlags`): bit 0 = protected (diagonal hatch),
- * bit 1 = over-stressed (pulsing glow), plus thin voxel grid lines (faded out when zoomed
- * far) so single voxels stay readable. Clipping planes keep working (T-303).
+ * Lambert material with per-vertex flags (`aFlags`): bit 0 = protected (diagonal hatch),
+ * bit 1 = over-stressed (pulsing glow), bit 2 = thinner than 2 voxels (T-308 warning dots),
+ * plus thin voxel grid lines (faded out when zoomed far) so single voxels stay readable.
+ * Flags are tested bitwise (`mod(floor(f / bit), 2.0)`). Clipping planes keep working (T-303).
  */
 export function createVoxelMaterial(): THREE.MeshLambertMaterial {
   const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
@@ -51,6 +52,21 @@ export function createVoxelMaterial(): THREE.MeshLambertMaterial {
           float stripe = step(0.5, fract((vGridPos.x + vGridPos.y + vGridPos.z) * 2.0));
           diffuseColor.rgb *= mix(0.62, 1.0, stripe);
         }
+        // thin-wall warning (T-308): 3×3 dots per voxel face in grid space, dark ink on light
+        // colours and light ink on dark ones (hard switch: a cell's colour is uniform, a blend
+        // would lose contrast at mid luminance); anti-aliased into an even tint when far away
+        // (derivatives taken outside the per-quad branch)
+        vec3 thinP = vGridPos * 3.0;
+        float thinW = max(fwidth(thinP.x), max(fwidth(thinP.y), fwidth(thinP.z))) + 1e-4;
+        if (mod(floor(scFlags / 4.0), 2.0) >= 1.0) {
+          vec3 thinQ = abs(fract(thinP) - 0.5) * (1.0 - abs(vObjNormal));
+          float thinDot = 1.0 - smoothstep(0.22 - thinW, 0.22 + thinW, length(thinQ));
+          float thinLum = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+          vec3 thinInk = thinLum > 0.18
+            ? diffuseColor.rgb * 0.3
+            : mix(diffuseColor.rgb, vec3(1.0, 0.86, 0.55), 0.65);
+          diffuseColor.rgb = mix(diffuseColor.rgb, thinInk, thinDot * 0.75);
+        }
         {
           vec3 fw = fwidth(vGridPos);
           vec3 dist = abs(fract(vGridPos - 0.5) - 0.5);
@@ -64,12 +80,12 @@ export function createVoxelMaterial(): THREE.MeshLambertMaterial {
       .replace(
         '#include <emissivemap_fragment>',
         `#include <emissivemap_fragment>
-        if (scFlags >= 2.0) {
+        if (mod(floor(scFlags / 2.0), 2.0) >= 1.0) {
           totalEmissiveRadiance += diffuseColor.rgb * (0.25 + 0.55 * (0.5 + 0.5 * sin(uTime * 7.0)));
         }`,
       );
   };
-  mat.customProgramCacheKey = () => 'stress-carve-voxel-v2';
+  mat.customProgramCacheKey = () => 'stress-carve-voxel-v3';
   return mat;
 }
 
@@ -122,6 +138,15 @@ export class VoxelMesh {
 
   setPalette(id: PaletteId): void {
     this.paint.palette = linearPalette(PALETTES[id]);
+    this.repaintAll();
+  }
+
+  /**
+   * Thin-wall warning flags (T-308; live array — mark changed cells dirty), or null to hide
+   * the tint.
+   */
+  setThin(thin: Uint8Array | null): void {
+    this.paint.thin = thin;
     this.repaintAll();
   }
 

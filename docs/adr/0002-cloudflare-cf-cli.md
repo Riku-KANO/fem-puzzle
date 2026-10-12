@@ -18,6 +18,11 @@ maintenance. `cf` deploys **Workers** projects; Pages is not part of it.
 - Pin the `cf` beta version; CI authenticates with `CLOUDFLARE_API_TOKEN` +
   `CLOUDFLARE_ACCOUNT_ID` and sets `DO_NOT_TRACK=1`.
 
+- Build backend for `cf build`: **@cloudflare/vite-plugin v2 (beta)**, no Wrangler package at
+  all (user decision 2026-10-12). Verified by T-309: `cf` beta.14 cannot build an assets-only
+  site without a backend; the alternative (Wrangler as cf's backend) was rejected because the
+  user wants zero Wrangler, and Wrangler is being deprecated in favour of `cf`.
+
 ## Consequences
 
 - The beta can change commands/config; `deploy/README.md` (T-309) records the verified version.

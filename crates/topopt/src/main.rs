@@ -1,6 +1,21 @@
-//! `cargo run -p topopt --release -- <stage.json>…` — implemented by task `T-203`.
+//! `topopt` CLI — see `topopt help` and `docs/tasks/T-203-topopt.md`.
+
+use topopt::cli::{self, Command};
+use topopt::commands;
 
 fn main() {
-    eprintln!("topopt: not implemented yet (see docs/tasks/T-203*.md)");
-    std::process::exit(2);
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let result = cli::parse(&args).and_then(|cmd| match cmd {
+        Command::Help => {
+            print!("{}", cli::USAGE);
+            Ok(())
+        }
+        Command::Run(a) => commands::run(&a),
+        Command::Calibrate(a) => commands::calibrate(&a),
+        Command::Judge(paths) => commands::judge(&paths),
+    });
+    if let Err(e) = result {
+        eprintln!("topopt: {e}");
+        std::process::exit(1);
+    }
 }
