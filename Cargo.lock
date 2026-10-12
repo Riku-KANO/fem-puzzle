@@ -29,6 +29,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "fem-bench"
+version = "0.1.0"
+dependencies = [
+ "fem",
+ "serde",
+ "serde_json",
+ "stage",
+]
+
+[[package]]
 name = "fem-wasm"
 version = "0.1.0"
 dependencies = [

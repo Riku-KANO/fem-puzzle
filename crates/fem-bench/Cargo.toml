@@ -1,0 +1,13 @@
+[package]
+name = "fem-bench"
+description = "Phase 0 performance benchmark of the fem solver (native) — see docs/tasks/T-204-perf-gate.md"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+fem.workspace = true
+stage.workspace = true
+serde.workspace = true
+serde_json.workspace = true
