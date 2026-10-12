@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildCampaign, type StageRecord } from '../src/game/progress/index.ts';
 import { HashRouter } from '../src/ui/select/router.svelte.ts';
+import { FakeWindow } from './fakeWindow.ts';
 import {
   formatRoute,
   legacyRewrite,
@@ -82,65 +83,6 @@ describe('hash routes', () => {
   });
 });
 
-/** Minimal window: location + history + hashchange. */
-class FakeWindow {
-  pathname = '/';
-  search = '';
-  hash = '';
-  pushes = 0;
-  private listeners = new Set<() => void>();
-
-  readonly location = (() => {
-    const self = this; // the accessor object below needs the fake instance
-    return {
-      get pathname() {
-        return self.pathname;
-      },
-      get search() {
-        return self.search;
-      },
-      get hash() {
-        return self.hash;
-      },
-      set hash(h: string) {
-        const next = h.startsWith('#') ? h : `#${h}`;
-        if (next === self.hash) return;
-        self.hash = next;
-        self.pushes++;
-        self.fire();
-      },
-    };
-  })();
-
-  readonly history = {
-    state: null,
-    replaceState: (_s: unknown, _t: string, url: string) => {
-      const u = new URL(url, 'http://x');
-      this.pathname = u.pathname;
-      this.search = u.search;
-      this.hash = u.hash;
-    },
-  };
-
-  addEventListener(type: string, fn: () => void): void {
-    if (type === 'hashchange') this.listeners.add(fn);
-  }
-  removeEventListener(type: string, fn: () => void): void {
-    if (type === 'hashchange') this.listeners.delete(fn);
-  }
-  /** user edits the address bar / presses back */
-  go(hash: string): void {
-    this.hash = hash;
-    this.fire();
-  }
-  private fire(): void {
-    for (const fn of this.listeners) fn();
-  }
-  get listenerCount(): number {
-    return this.listeners.size;
-  }
-}
-
 function router(win: FakeWindow): HashRouter {
   return new HashRouter(win as unknown as Window, (id) => ['w1-01', 'w1-02'].includes(id));
 }
@@ -189,6 +131,34 @@ describe('HashRouter', () => {
     expect(win.hash).toBe('#/select');
     r.navigate({ kind: 'stage', id: 'w1-01' });
     expect(r.notice).toBeNull();
+  });
+
+  it('onBeforeChange runs before the route changes, for every kind of change', () => {
+    const win = new FakeWindow();
+    const r = router(win);
+    const seen: string[] = [];
+    r.onBeforeChange = (from, to) => {
+      // still on the old screen while the hook runs
+      expect(r.route).toEqual(from);
+      seen.push(`${from.kind}→${to.kind}`);
+    };
+    r.navigate({ kind: 'stage', id: 'w1-01' }); // push (hashchange)
+    win.go('#/select'); // back button / address bar
+    r.navigate({ kind: 'select', world: 1 }, { replace: true }); // replace (no hashchange)
+    r.navigate({ kind: 'select', world: 1 }); // same route: no change, no hook
+    win.go('#/select/w1'); // address bar to the route already shown: no hook
+    win.go('#/stage/w9-99'); // unknown stage resolves to #/select (all worlds): a change
+    expect(seen).toEqual(['title→stage', 'stage→select', 'select→select', 'select→select']);
+  });
+
+  it('a throwing onBeforeChange still switches the route', () => {
+    const win = new FakeWindow();
+    const r = router(win);
+    r.onBeforeChange = () => {
+      throw new Error('boom');
+    };
+    expect(() => r.navigate({ kind: 'select', world: null })).toThrow('boom');
+    expect(r.route).toEqual({ kind: 'select', world: null });
   });
 
   it('dispose stops listening', () => {
