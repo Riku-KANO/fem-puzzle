@@ -10,6 +10,7 @@
 pub mod connectivity;
 pub mod grid;
 pub mod hex8;
+pub mod mg;
 pub mod operator;
 mod pcg;
 pub mod precond;
@@ -17,6 +18,7 @@ pub mod problem;
 pub mod solver;
 
 pub use grid::Grid;
+pub use mg::{MgOptions, Multigrid};
 pub use operator::{Operator, OperatorView};
 pub use precond::{Jacobi, Precond};
 pub use problem::{FemError, LoadCase, Material, Problem};
