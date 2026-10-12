@@ -1,0 +1,4 @@
+# cf / Vite plugin output: Build Output Specification (.cloudflare/output), generated
+# types (.cloudflare/types) and local dev state (.cloudflare/state).
+.cloudflare/
+node_modules/
