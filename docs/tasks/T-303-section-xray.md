@@ -1,7 +1,7 @@
 ---
 id: T-303
 title: Cross-section clipping (3 axes) and X-ray mode
-status: todo
+status: doing
 phase: 1
 depends: [T-102]
 owns:

@@ -1,7 +1,7 @@
 ---
 id: T-304
 title: Stage select, campaign progression and local records
-status: todo
+status: doing
 phase: 1
 depends: [T-102, T-103]
 owns:
