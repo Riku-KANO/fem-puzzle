@@ -1,7 +1,7 @@
 ---
 id: T-313
 title: E2E gameplay specs — wasm carve loop, submit/result flow, stage select, load test
-status: review
+status: done
 phase: 1
 depends: [T-205, T-301, T-304]
 owns:
