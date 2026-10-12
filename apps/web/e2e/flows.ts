@@ -23,6 +23,7 @@ export async function carveUndoLoop(page: Page, testInfo: TestInfo, backend: Bac
   // load + first solve
   const s0 = await openStage(page, STAGE_ID, backend);
   expect(s0.backend).toBe(backend);
+  expect(s0.converged).toBe(true);
   expect(s0.volume).toBe(1);
   await expect(volumeText(page)).toHaveText(percent1(s0.volume));
 
@@ -46,9 +47,10 @@ export async function carveUndoLoop(page: Page, testInfo: TestInfo, backend: Bac
   expect(carved, 'voxels removed by one 3×3 click').toBeGreaterThanOrEqual(1);
   expect(carved).toBeLessThanOrEqual(9);
   expect(s1.volume).toBeLessThan(s0.volume);
+  expect(s1.converged).toBe(true);
   expect(s1.canUndo).toBe(true);
   await expect(volumeText(page)).toHaveText(percent1(s1.volume));
-  await expect(page.getByText('解析完了')).toBeVisible();
+  await expect(page.getByText('解析完了', { exact: true })).toBeVisible();
   await shot(page, testInfo, '2-carved');
 
   // undo with a right click (no movement) → volume restored, re-solved
