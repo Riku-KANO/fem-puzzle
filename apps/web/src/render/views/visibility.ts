@@ -57,6 +57,17 @@ export function clampCut(g: Grid, axis: Axis, cut: number): number {
   return Math.min(n, Math.max(0, Math.round(cut)));
 }
 
+/**
+ * First section axis for a stage: across the thinnest grid dimension (ties → z, then y), so
+ * the cut shows the in-plane profile — for the plate-like W1/W2 beams the whole side view of
+ * the bending stress, rather than a slice across the span.
+ */
+export function defaultAxis(dims: Vec3): Axis {
+  let best: Axis = 2;
+  for (const a of [1, 0] as const) if (dims[a] < dims[best]) best = a;
+  return best;
+}
+
 export function defaultCut(g: Grid, axis: Axis): number {
   return Math.round(axisLength(g, axis) / 2);
 }

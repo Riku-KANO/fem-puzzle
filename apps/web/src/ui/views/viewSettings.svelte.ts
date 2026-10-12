@@ -4,7 +4,7 @@
 
 import type { Vec3 } from '@stress-carve/protocol';
 import type { Axis } from '../../game/grid.ts';
-import { DEFAULT_XRAY_THRESHOLD, type ViewSettingsLike } from '../../render/views/visibility.ts';
+import { DEFAULT_XRAY_THRESHOLD, defaultAxis, type ViewSettingsLike } from '../../render/views/visibility.ts';
 
 export const AXES: readonly { id: Axis; label: string }[] = [
   { id: 0, label: 'X' },
@@ -23,6 +23,7 @@ export class ViewSettings implements ViewSettingsLike {
   dims = $state.raw<Vec3>([1, 1, 1]);
 
   constructor(dims: Vec3) {
+    this.axis = defaultAxis(dims);
     this.setStage(dims);
   }
 

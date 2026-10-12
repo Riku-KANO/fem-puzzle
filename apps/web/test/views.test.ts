@@ -15,6 +15,7 @@ import {
   cellLook,
   clampCut,
   DEFAULT_XRAY_THRESHOLD,
+  defaultAxis,
   facingFlip,
   hiddenByView,
   isGhost,
@@ -58,6 +59,14 @@ describe('view spec from the mode toggle', () => {
     expect(clampCut(g, 0, 2.6)).toBe(3);
     expect(clampCut(g, 2, 9)).toBe(4);
     expect(clampCut(g, 1, Number.NaN)).toBe(4);
+  });
+
+  it('first section axis cuts across the thinnest dimension (ties → z, y)', () => {
+    expect(defaultAxis([24, 8, 4])).toBe(2);
+    expect(defaultAxis([32, 8, 8])).toBe(2);
+    expect(defaultAxis([32, 6, 8])).toBe(1);
+    expect(defaultAxis([4, 8, 8])).toBe(0);
+    expect(defaultAxis([12, 12, 12])).toBe(2);
   });
 
   it('default kept side turns the cut face towards the camera', () => {
