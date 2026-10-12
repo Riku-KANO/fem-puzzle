@@ -1,0 +1,300 @@
+{
+  "benchmark": {
+    "maxUtilization": 0.9,
+    "method": "simp-oc",
+    "solid": "BwAA4AAAAAAAAAAAAAAAAAAAAAAAAAAAAHAOAADgBwAfAAD4OAAAHOAAAAfAA8ADAAfgAAAcOAAAeB4AAOAHAB8AAPh8AAA+8AAAD8ADwAMAD/AAAB54AAB4HgAA4AcAHwAA+DwAADzwAAAPwAPAA4AP8AEAHngAAHgeAADgBwAfAAD4PAAAPPAAAA/AA8ADgA/wAQAeeAAAeB4AAOAHAB8AAPh8AAA+8AAAD8ADwAMAD/AAAB54AAB4HgAA4AcAHwAA+DgAABzgAAAHgAPAAQAH4AAAHDgAAHgeAADgBwAHAADgAAAAAAAAAAAAAAAAAAAAAAAAAAAAcA4AAOAHAA==",
+    "volume": 0.2001953125
+  },
+  "grid": [
+    32,
+    8,
+    8
+  ],
+  "hints": [
+    "今度は両端ともピン。左右どちらにも動かない。",
+    "両岸が横から押し返してくれるので、アーチだけで支えられる。下の引っぱり材は必要かな?"
+  ],
+  "id": "w2-05",
+  "keep": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+  "loads": [
+    {
+      "cells": [
+        [
+          15,
+          7,
+          0
+        ],
+        [
+          16,
+          7,
+          0
+        ],
+        [
+          15,
+          7,
+          1
+        ],
+        [
+          16,
+          7,
+          1
+        ],
+        [
+          15,
+          7,
+          2
+        ],
+        [
+          16,
+          7,
+          2
+        ],
+        [
+          15,
+          7,
+          3
+        ],
+        [
+          16,
+          7,
+          3
+        ],
+        [
+          15,
+          7,
+          4
+        ],
+        [
+          16,
+          7,
+          4
+        ],
+        [
+          15,
+          7,
+          5
+        ],
+        [
+          16,
+          7,
+          5
+        ],
+        [
+          15,
+          7,
+          6
+        ],
+        [
+          16,
+          7,
+          6
+        ],
+        [
+          15,
+          7,
+          7
+        ],
+        [
+          16,
+          7,
+          7
+        ]
+      ],
+      "force": [
+        0.0,
+        -76910.0,
+        0.0
+      ]
+    }
+  ],
+  "material": {
+    "E": 70000000000.0,
+    "allowable": 120000000.0,
+    "density": 2700.0,
+    "nu": 0.33
+  },
+  "solid": "/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////w==",
+  "supports": [
+    {
+      "cells": [
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ],
+        [
+          1,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          2
+        ],
+        [
+          1,
+          0,
+          2
+        ],
+        [
+          0,
+          0,
+          3
+        ],
+        [
+          1,
+          0,
+          3
+        ],
+        [
+          0,
+          0,
+          4
+        ],
+        [
+          1,
+          0,
+          4
+        ],
+        [
+          0,
+          0,
+          5
+        ],
+        [
+          1,
+          0,
+          5
+        ],
+        [
+          0,
+          0,
+          6
+        ],
+        [
+          1,
+          0,
+          6
+        ],
+        [
+          0,
+          0,
+          7
+        ],
+        [
+          1,
+          0,
+          7
+        ]
+      ],
+      "face": "y-",
+      "fix": "xyz"
+    },
+    {
+      "cells": [
+        [
+          30,
+          0,
+          0
+        ],
+        [
+          31,
+          0,
+          0
+        ],
+        [
+          30,
+          0,
+          1
+        ],
+        [
+          31,
+          0,
+          1
+        ],
+        [
+          30,
+          0,
+          2
+        ],
+        [
+          31,
+          0,
+          2
+        ],
+        [
+          30,
+          0,
+          3
+        ],
+        [
+          31,
+          0,
+          3
+        ],
+        [
+          30,
+          0,
+          4
+        ],
+        [
+          31,
+          0,
+          4
+        ],
+        [
+          30,
+          0,
+          5
+        ],
+        [
+          31,
+          0,
+          5
+        ],
+        [
+          30,
+          0,
+          6
+        ],
+        [
+          31,
+          0,
+          6
+        ],
+        [
+          30,
+          0,
+          7
+        ],
+        [
+          31,
+          0,
+          7
+        ]
+      ],
+      "face": "y-",
+      "fix": "xyz"
+    }
+  ],
+  "targets": {
+    "star1": 0.5002,
+    "star2": 0.3502,
+    "star3": 0.2502
+  },
+  "title": "両岸で押し返すアーチ",
+  "version": 1,
+  "voxelSize": 0.01,
+  "world": 2
+}
