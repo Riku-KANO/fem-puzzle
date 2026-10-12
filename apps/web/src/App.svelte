@@ -4,6 +4,7 @@
   import { onMount } from 'svelte';
   import type { BrushSize } from './game/brush.ts';
   import { startGame, type GameSession } from './game/boot.ts';
+  import { submitGate } from './game/judge/index.ts';
   import { listStages, pickInitialStage } from './game/stages.ts';
   import type { PaletteId } from './render/colormap.ts';
   import { HudState, type ViewMode } from './ui/hudState.svelte.ts';
@@ -12,15 +13,20 @@
   import StagePanel from './ui/StagePanel.svelte';
   import Toast from './ui/Toast.svelte';
   import Toolbar from './ui/Toolbar.svelte';
+  import ResultScreen from './ui/result/ResultScreen.svelte';
+  import { ResultSession } from './ui/result/resultSession.svelte.ts';
 
   const { stage } = pickInitialStage(listStages(), window.location.search);
   const hud = new HudState();
+  const result = new ResultSession(); // T-304: result.onClear = (c) => progress.recordClear(c)
+  const gate = $derived(submitGate(hud));
   let viewport: HTMLDivElement;
   let game: GameSession | null = null;
 
   onMount(() => {
     game = startGame(viewport, stage, hud, hud.palette);
     return () => {
+      result.dispose();
       game?.dispose();
       game = null;
     };
@@ -36,6 +42,9 @@
     },
     viewMode: (mode: ViewMode) => {
       hud.viewMode = mode; // section / X-ray rendering: T-303
+    },
+    submit: () => {
+      if (game) result.open(game, hud);
     },
   };
 
@@ -68,12 +77,26 @@
     <div class="top-left">
       <StagePanel title={stage.title} world={stage.world} targets={stage.targets} {hud} />
     </div>
+    {#if result.submission}
+      <div class="result-slot">
+        <ResultScreen session={result} targets={stage.targets} current={hud.resultCurrent} />
+      </div>
+    {/if}
     <div class="right">
       <SidePanel {hud} onPalette={actions.palette} onViewMode={actions.viewMode} />
     </div>
     <div class="bottom">
       <Toast {hud} />
-      <Toolbar {hud} onBrush={actions.brush} onUndo={actions.undo} onRedo={actions.redo} />
+      <Toolbar
+        {hud}
+        onBrush={actions.brush}
+        onUndo={actions.undo}
+        onRedo={actions.redo}
+        canSubmit={gate.enabled && !result.submission}
+        submitTitle={gate.reason}
+        submitHint={gate.problem ? gate.reason : null}
+        onSubmit={actions.submit}
+      />
     </div>
   </div>
 </main>
@@ -104,6 +127,12 @@
     position: absolute;
     top: 16px;
     left: 16px;
+  }
+  .result-slot {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
   }
   .right {
     position: absolute;

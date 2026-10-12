@@ -9,9 +9,16 @@
     onBrush: (size: BrushSize) => void;
     onUndo: () => void;
     onRedo: () => void;
+    /** submit gate (T-301: game/judge `submitGate`) */
+    canSubmit?: boolean;
+    submitTitle?: string;
+    /** a blocking reason shown next to the button (e.g. 構造が安定していません) */
+    submitHint?: string | null;
+    onSubmit?: () => void;
   }
 
-  let { hud, onBrush, onUndo, onRedo }: Props = $props();
+  let { hud, onBrush, onUndo, onRedo, canSubmit = false, submitTitle = '提出', submitHint = null, onSubmit }: Props =
+    $props();
 
   const brushLabel = (s: BrushSize) => `${s}×${s}`;
 </script>
@@ -34,7 +41,8 @@
   <button disabled={!hud.canRedo} title="やり直す(Shift+Ctrl/⌘+Z)" onclick={onRedo}>↷ やり直す</button>
   <div class="sep"></div>
   <button disabled title="載荷テスト(準備中)">載荷テスト</button>
-  <button class="primary" disabled title="提出(準備中)">提出</button>
+  {#if submitHint}<span class="hint" role="status">{submitHint}</span>{/if}
+  <button class="primary" disabled={!canSubmit} title={submitTitle} onclick={() => onSubmit?.()}>提出</button>
 </nav>
 
 <style>
@@ -61,6 +69,10 @@
     align-self: stretch;
     background: #333843;
     margin: 0 0.2rem;
+  }
+  .hint {
+    font-size: 0.72rem;
+    color: #ffb4b4;
   }
   .primary:not(:disabled) {
     background: var(--accent);
