@@ -1,7 +1,7 @@
 ---
 id: T-315
 title: Fix 途中 marker race when leaving a stage < 500 ms after a carve
-status: review
+status: done
 phase: 1
 depends: [T-304, T-313]
 owns:
