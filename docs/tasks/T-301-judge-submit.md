@@ -1,7 +1,7 @@
 ---
 id: T-301
 title: Judgement, submission, stars and benchmark comparison
-status: review
+status: done
 phase: 1
 depends: [T-202, T-203]
 owns:
