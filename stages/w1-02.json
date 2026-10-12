@@ -1,8 +1,8 @@
 {
   "benchmark": {
-    "maxUtilization": 0.8997,
+    "maxUtilization": 0.8996,
     "method": "simp-oc",
-    "solid": "DwAAPwAA+AAA4AEA4AMAMAYAGAwA/x8ABwAAHwAAcAAAgAEAAAMAAAYAAAwA/x8ABwAAHwAAcAAAgAEAAAMAAAYAAAwA/x8ADwAAPwAA+AAA4AEA4AMAMAYAGAwA/x8A",
+    "solid": "DwAAPwAA8QAA4QMAwQcAgQ8AIQ4A/x8ADwAAHwAAIQAAAQAAAQAAAQAAAQAA/xkADwAAHwAAIQAAAQAAAQAAAQAAAQAA/xkADwAAPwAA8QAA4QMAwQcAgQ8AIQ4A/x8A",
     "volume": 0.20052083333333334
   },
   "grid": [
@@ -62,7 +62,7 @@
       ],
       "force": [
         0.0,
-        -26360.0,
+        -23030.0,
         0.0
       ]
     }

@@ -1,9 +1,9 @@
 {
   "benchmark": {
-    "maxUtilization": 0.8998,
+    "maxUtilization": 0.8999,
     "method": "simp-oc",
-    "solid": "//8BeMAD4EAGgGEMADMYAB4wAA4A/wfADwAAAAAAAAAAAAAAAAAAAAAgAABg////DwAAAAAAAAAAAAAAAAAAAAAgAABg//////8BeMAD4EAGgGEMADMYAB4wAA4A/wfA",
-    "volume": 0.25
+    "solid": "//8BGeADMWAGYTAMwRgYAQ8QwQcA/z/A/x8AAQAAAQAAAQAAAQAAAQAwAQBgf+D//x8AAQAAAQAAAQAAAQAAAQAwAQBgf+D///8BGeADMWAGYTAMwRgYAQ8QwQcA/z/A",
+    "volume": 0.2994791666666667
   },
   "grid": [
     24,
@@ -63,7 +63,7 @@
       ],
       "force": [
         0.0,
-        -11140.0,
+        -12290.0,
         0.0
       ]
     }
@@ -82,9 +82,9 @@
     }
   ],
   "targets": {
-    "star1": 0.55,
-    "star2": 0.4,
-    "star3": 0.3
+    "star1": 0.5995,
+    "star2": 0.4495,
+    "star3": 0.3495
   },
   "title": "はじめての片持ちはり",
   "version": 1,
