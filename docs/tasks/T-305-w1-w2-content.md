@@ -1,7 +1,7 @@
 ---
 id: T-305
 title: W1 tutorial flow and full W1/W2 stage set (8–10 each)
-status: review
+status: done
 phase: 1
 depends: [T-203, T-301]
 owns:
