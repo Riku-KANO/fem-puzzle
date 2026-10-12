@@ -1,7 +1,7 @@
 ---
 id: T-308
 title: Minimum thickness (2 voxels) warning overlay
-status: todo
+status: doing
 phase: 1
 depends: [T-102]
 owns:
