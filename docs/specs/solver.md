@@ -79,7 +79,7 @@ pub struct Problem {
     pub material: Material,
     pub domain: Vec<bool>,     // per element: initially solid
     pub keep: Vec<bool>,       // per element, incl. implicit support/load cells
-    pub supported: Vec<bool>,  // per element: has at least one fixed node via a support
+    pub supported: Vec<bool>,  // per element: supported cell (Stage::supported_cells)
     pub fixed: Vec<bool>,      // per DOF
     pub cases: Vec<LoadCase>,  // ≥ 1
 }
