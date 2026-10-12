@@ -195,7 +195,7 @@
         <div class="tools">
           {#if stage.world === 1}
             <button class:active={glowOn} aria-pressed={glowOn} onclick={() => (glowOn = !glowOn)}>
-              低応力の場所を光らせる
+              低応力を光らせる
             </button>
           {/if}
           {#if hasTutorial}

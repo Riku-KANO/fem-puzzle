@@ -2,8 +2,8 @@
   "benchmark": {
     "maxUtilization": 0.8999,
     "method": "simp-oc",
-    "solid": "AOAHAAAwDAAAAAAAAAAAAAAAAAAAAAAAAQAAgAMAAMAA4AcAADgcAAAeeACAB+ABwAGAA/AAAA8/AAD8DwAA8ADgBwAAeB4AAB54AIAH4AHgAYAHeAAAHh8AAPgPAADwAOAHAAB4HgAAHngAgAfgAeABgAd4AAAeHwAA+A8AAPAA4AcAAHgeAAAeeACAB+AB4AGAB3gAAB4fAAD4DwAA8ADgBwAAOBwAAB54AIAH4AHgAYAHeAAAHh8AAPgPAADwAOAHAAA4HAAAHngAgAfgAcABgAPwAAAPPwAA/A8AAPAA4AcAADAMAAAAAAAAAAAAAAAAAAAAAAABAACAAwAAwA==",
-    "volume": 0.2001953125
+    "solid": "APw/AAAf+ACAH/gBwBmYA3AwDA44cA4cH2AG+AfAA+AA/D8AAAZgAIADwAHgAYAH8AAADzgAABwfAAD4B4AB4AD4HwAABmAAgAPAAcAAAANgAAAGOAAAHA8AAPAHgAHgAPw/AAA+fAAAMYwAAHAOAABgBgAA4AcAAcADgAGAAYAA/D8AAD58AAAxjAAAcA4AAGAGAADgBwABwAOAAYABgAD4HwAABmAAgAPAAcAAAANgAAAGOAAAHA8AAPAHgAHgAPw/AAAGYACAA8AB4AGAB/AAAA84AAAcHwAA+AeAAeAA/D8AAB/4AIAf+AHAGZgDcDAMDjhwDhwfYAb4B8AD4A==",
+    "volume": 0.25
   },
   "grid": [
     32,
@@ -11,8 +11,9 @@
     8
   ],
   "hints": [
-    "支点は両端の上のほう、荷重は下のまん中にぶら下がっている。",
-    "ぶら下げる形はケーブルのように引っぱりで支える。アーチを逆さにした形を探そう。"
+    "支点は両側の壁の上のほう。荷重も上の段のまん中にかかる。",
+    "上の段だけで横につなぐと、曲げに弱い。下の青い部分の高さを使おう。",
+    "ケーブルのように下へ垂れ下がる形が、力を両側の壁へ運ぶ。"
   ],
   "id": "w2-06",
   "keep": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
@@ -21,88 +22,88 @@
       "cells": [
         [
           15,
-          0,
+          7,
           0
         ],
         [
           16,
-          0,
+          7,
           0
         ],
         [
           15,
-          0,
+          7,
           1
         ],
         [
           16,
-          0,
+          7,
           1
         ],
         [
           15,
-          0,
+          7,
           2
         ],
         [
           16,
-          0,
+          7,
           2
         ],
         [
           15,
-          0,
+          7,
           3
         ],
         [
           16,
-          0,
+          7,
           3
         ],
         [
           15,
-          0,
+          7,
           4
         ],
         [
           16,
-          0,
+          7,
           4
         ],
         [
           15,
-          0,
+          7,
           5
         ],
         [
           16,
-          0,
+          7,
           5
         ],
         [
           15,
-          0,
+          7,
           6
         ],
         [
           16,
-          0,
+          7,
           6
         ],
         [
           15,
-          0,
+          7,
           7
         ],
         [
           16,
-          0,
+          7,
           7
         ]
       ],
       "force": [
         0.0,
-        -74630.0,
+        -82790.0,
         0.0
       ]
     }
@@ -289,11 +290,11 @@
     }
   ],
   "targets": {
-    "star1": 0.5002,
-    "star2": 0.3502,
-    "star3": 0.2502
+    "star1": 0.55,
+    "star2": 0.4,
+    "star3": 0.3
   },
-  "title": "吊り下げる",
+  "title": "谷にかける橋",
   "version": 1,
   "voxelSize": 0.01,
   "world": 2

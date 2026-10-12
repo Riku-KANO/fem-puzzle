@@ -1,8 +1,8 @@
 {
   "benchmark": {
-    "maxUtilization": 0.8993,
+    "maxUtilization": 0.8998,
     "method": "simp-oc",
-    "solid": "PwAAMQAAMQAAMQAAMQAAMQAAMQAAMQAAMwAAPwAA///B/x8AfzwAfnAAfMAD+P8BPwAAIQAAIQAAIQAAIQAAIQAAIQAAIQAAIQAAMQAA4eP/QQBwAgA4BAAcCAAG8P8DPwAAIQAAIQAAIQAAIQAAIQAAIQAAIQAAIQAAMQAA4eP/QQBwAgA4BAAcCAAG8P8DPwAAMQAAMQAAMQAAMQAAMQAAMQAAMQAAMwAAPwAA///A/x8AfzwAfnAAfMAD+P8B",
+    "solid": "PwAAMQAAMQAAMQAAMQAAMQAAMQAAMQAAMQAAPwAA//8H/4MPP4YdPswwPHwA+D/APwAAIQAAIQAAIQAAIQAAIQAAIQAAIQAAIQAAIQAA4f8AIQAAAgAABgAwDABg+P//PwAAIQAAIQAAIQAAIQAAIQAAIQAAIQAAIQAAIQAA4f8AIQAAAgAABgAwDABg8P//PwAAMQAAMQAAMQAAMQAAMQAAMQAAMQAAMQAAPwAA//8H/4MPP4YdPswwPHwA+D/A",
     "volume": 0.4497549019607843
   },
   "grid": [
@@ -11,7 +11,7 @@
     4
   ],
   "hints": [
-    "吊り荷の力は、腕を通って柱へ、柱を通って床へ流れる。",
+    "腕の先の荷重は、腕を通って柱へ、柱を通って床へ流れる。",
     "L字の内側の角には応力が集まる。角のまわりの色をよく見よう。",
     "角に斜めの支えを残すと、腕も柱も楽になる。"
   ],
@@ -22,48 +22,48 @@
       "cells": [
         [
           22,
-          10,
+          15,
           0
         ],
         [
           23,
-          10,
+          15,
           0
         ],
         [
           22,
-          10,
+          15,
           1
         ],
         [
           23,
-          10,
+          15,
           1
         ],
         [
           22,
-          10,
+          15,
           2
         ],
         [
           23,
-          10,
+          15,
           2
         ],
         [
           22,
-          10,
+          15,
           3
         ],
         [
           23,
-          10,
+          15,
           3
         ]
       ],
       "force": [
         0.0,
-        -11730.0,
+        -11670.0,
         0.0
       ]
     }

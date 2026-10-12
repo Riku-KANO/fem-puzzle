@@ -4,9 +4,9 @@
 import * as THREE from 'three';
 import { cellCoords, type Grid } from '../../game/grid.ts';
 
-const COLOR = 0xc8f4ff;
-const OPACITY_MIN = 0.12;
-const OPACITY_MAX = 0.42;
+const COLOR = 0xa8e6ff;
+const OPACITY_MIN = 0.1;
+const OPACITY_MAX = 0.6;
 const PERIOD_S = 1.6;
 
 export class HintGlow {
@@ -25,6 +25,7 @@ export class HintGlow {
       transparent: true,
       opacity: (OPACITY_MIN + OPACITY_MAX) / 2,
       depthWrite: false,
+      blending: THREE.AdditiveBlending,
     });
     this.mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1.06, 1.06, 1.06), this.material, grid.n);
     this.mesh.count = 0;
