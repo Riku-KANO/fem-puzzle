@@ -40,7 +40,9 @@ pub struct SolverOptions {
     pub tol: f64,
     /// Iteration cap per load case.
     pub max_iters: usize,
+    /// Preconditioner for PCG.
     pub preconditioner: Preconditioner,
+    /// Player (0/1 solid set) or optimiser (SIMP densities) mode.
     pub mode: Mode,
 }
 
@@ -156,10 +158,12 @@ impl Solver {
         s
     }
 
+    /// The problem this solver was built for.
     pub fn problem(&self) -> &Problem {
         &self.problem
     }
 
+    /// The options this solver was built with.
     pub fn options(&self) -> &SolverOptions {
         &self.opts
     }
@@ -189,9 +193,13 @@ impl Solver {
     /// (optimiser mode; ignored in player mode). Takes effect at the next `begin`.
     ///
     /// # Panics
-    /// If `rho.len()` is not the element count.
+    /// If `rho.len()` is not the element count or `penal` is not finite and ≥ 0.
     pub fn set_density(&mut self, rho: &[f64], penal: f64) {
         assert_eq!(rho.len(), self.density.len(), "set_density: wrong length");
+        assert!(
+            penal.is_finite() && penal >= 0.0,
+            "set_density: bad penal {penal}"
+        );
         for (d, &r) in self.density.iter_mut().zip(rho) {
             *d = if r.is_nan() { 0.0 } else { r.clamp(0.0, 1.0) };
         }
@@ -205,8 +213,9 @@ impl Solver {
     }
 
     /// Recompute connectivity, active set, element stiffness, DOF mask and preconditioner
-    /// from the current solid set / densities. Returns whether the operator changed.
-    fn update_operator(&mut self, force_rebuild: bool) -> bool {
+    /// from the current solid set / densities. The preconditioner is rebuilt only if the
+    /// operator changed (or `force_rebuild`).
+    fn update_operator(&mut self, force_rebuild: bool) {
         let p = &self.problem;
         connected_to_seeds(
             &p.grid,
@@ -244,7 +253,6 @@ impl Solver {
         if changed || force_rebuild {
             self.precond.rebuild(&self.op.view());
         }
-        changed
     }
 
     /// Recompute active set / masks / preconditioner; warm start from the previous `u`

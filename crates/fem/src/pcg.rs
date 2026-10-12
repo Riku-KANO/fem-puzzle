@@ -55,6 +55,11 @@ impl Pcg {
     /// `r = M (f − A x)`; returns `‖r‖`.
     fn true_residual(&mut self, op: &Operator, f: &[f64], x: &[f64]) -> f64 {
         op.apply(x, &mut self.q);
+        self.residual_from_q(op, f)
+    }
+
+    /// `r = M (f − q)` with `q = A x` already computed; returns `‖r‖`.
+    fn residual_from_q(&mut self, op: &Operator, f: &[f64]) -> f64 {
         let mut rr = 0.0;
         for (((r, &fi), &ax), &free) in self.r.iter_mut().zip(f).zip(&self.q).zip(op.free()) {
             *r = if free { fi - ax } else { 0.0 };
@@ -97,7 +102,21 @@ impl Pcg {
             self.rel = 0.0;
             return 0.0;
         }
-        self.rel = self.true_residual(op, f, x) / self.f_norm;
+        // Energy-optimal rescaling of the warm start: x ← αx with α = xᵀf / xᵀAx minimises
+        // ‖x − A⁻¹f‖_A along the line, so it never hurts. After a small carve the global
+        // deflection grows slightly; rescaling absorbs most of that low-frequency change,
+        // which plain Jacobi-PCG would otherwise need many iterations to recover.
+        op.apply(x, &mut self.q);
+        let xax = dot(x, &self.q);
+        let xf = dot(x, f);
+        if xax > 0.0 && xax.is_finite() && xf.is_finite() {
+            let alpha = xf / xax;
+            for (xi, qi) in x.iter_mut().zip(&mut self.q) {
+                *xi *= alpha;
+                *qi *= alpha;
+            }
+        }
+        self.rel = self.residual_from_q(op, f) / self.f_norm;
         self.restart_direction(pc);
         self.rel
     }
