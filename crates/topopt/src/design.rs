@@ -85,7 +85,8 @@ impl Design {
 /// Threshold a density field (`rho`, physical densities in `[0, 1]`) to a valid 0/1 design
 /// of about `target_count` cells.
 ///
-/// 1. Keep cells, plus the `target_count − keep` densest free cells (ties: lower index).
+/// 1. Keep cells, plus the `target_count − keep` densest free cells (densities quantised
+///    to 1e-6; ties: lower index).
 /// 2. If a load or keep cell is not anchored, add cells in density order until it is
 ///    (the smallest such prefix, by bisection — adding material never disconnects).
 /// 3. Remove floating (unanchored) material.
@@ -95,7 +96,11 @@ pub fn threshold(layout: &Layout, rho: &[f64], target_count: usize) -> Result<De
         return err("density field has the wrong length");
     }
     let mut order: Vec<usize> = (0..n).filter(|&e| layout.is_free(e)).collect();
-    order.sort_by(|&a, &b| rho[b].total_cmp(&rho[a]).then(a.cmp(&b)));
+    // Rank on densities quantised to 1e-6 so that cells equal up to solver noise (e.g.
+    // mirror-symmetric pairs) tie exactly and the index decides: the design then does not
+    // flip with the last bits of the linear solve.
+    let q = |e: usize| (rho[e].clamp(0.0, 1.0) * 1e6).round() as i64;
+    order.sort_by(|&a, &b| q(b).cmp(&q(a)).then(a.cmp(&b)));
     let n_keep = layout.keep_count();
     let want = target_count.saturating_sub(n_keep).min(order.len());
 
