@@ -1,7 +1,7 @@
 ---
 id: T-101
 title: FEM core — Hex8, problem setup, matrix-free Jacobi-PCG, stress, connectivity
-status: todo
+status: doing
 phase: 0
 depends: [T-002]
 owns:

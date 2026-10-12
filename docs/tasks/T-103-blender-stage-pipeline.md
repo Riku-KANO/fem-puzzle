@@ -1,7 +1,7 @@
 ---
 id: T-103
 title: Blender stage pipeline — stagekit, voxelising exporter, W1/W2 starter stages
-status: todo
+status: doing
 phase: 0
 depends: [T-002]
 owns:
