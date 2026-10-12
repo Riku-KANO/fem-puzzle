@@ -212,8 +212,7 @@ export class StageScene implements ViewPort {
         for (const m of mats) m.dispose();
       }
     });
-    this.renderer.dispose();
-    this.renderer.domElement.remove();
+    releaseRenderer(this.renderer);
   }
 
   // --- internals ------------------------------------------------------------
@@ -285,6 +284,19 @@ export class StageScene implements ViewPort {
     this.loadTest.update(timeMs);
     this.renderer.render(this.scene, this.camera);
   }
+}
+
+/**
+ * Free the renderer *and* its WebGL context before dropping the canvas. Browsers cap live
+ * contexts (~16); without `forceContextLoss` every stage switch (T-304) would leak one until
+ * GC, and old canvases eventually trigger "too many active WebGL contexts".
+ */
+export function releaseRenderer(
+  renderer: Pick<THREE.WebGLRenderer, 'dispose' | 'forceContextLoss'> & { domElement: { remove(): void } },
+): void {
+  renderer.dispose(); // first: removes the renderer's context-lost listeners
+  renderer.forceContextLoss();
+  renderer.domElement.remove();
 }
 
 function makeBrushMesh(geo: THREE.BoxGeometry, color: number, opacity: number): THREE.InstancedMesh {

@@ -1,24 +1,87 @@
-import { encodeBitmask, type FromWorker, type ResultMsg } from '@stress-carve/protocol';
+import { encodeBitmask, nodeCount, type FromWorker, type ResultMsg, type Stage } from '@stress-carve/protocol';
 import { describe, expect, it } from 'vitest';
 import { buildDemoStage } from '../src/game/demoStage.ts';
 import { cellIndex, makeGrid } from '../src/game/grid.ts';
-import { SolverHost } from '../src/solver/host.ts';
+import type { Backend, BackendFactory, SolveHooks, SolveOutput } from '../src/solver/backend.ts';
+import { SolverHost, type HostOptions } from '../src/solver/host.ts';
 import { MockBackend } from '../src/solver/mockBackend.ts';
 
-function setup(steps = 3) {
+type Factory = () => BackendFactory;
+
+const mockFactory =
+  (steps: number): Factory =>
+  () =>
+  (stage, opts) =>
+    Promise.resolve(new MockBackend(stage, { ...opts, steps }));
+
+function setup(backend: number | Factory = 3, hostOptions: HostOptions = {}) {
   const out: FromWorker[] = [];
   const transfers: Transferable[][] = [];
   const host = new SolverHost(
     (msg, transfer) => {
-      out.push(msg);
+      // like a real postMessage: transferred buffers are detached, so a backend that reuses
+      // or double-transfers a buffer fails here
+      out.push(structuredClone(msg, { transfer }));
       transfers.push(transfer);
     },
-    () => (stage, opts) => Promise.resolve(new MockBackend(stage, { ...opts, steps })),
+    typeof backend === 'number' ? mockFactory(backend) : backend,
+    hostOptions,
   );
   return { host, out, transfers };
 }
 
 const results = (out: FromWorker[]) => out.filter((m): m is ResultMsg => m.type === 'result');
+
+/** A yield that only resolves when the test opens it — pins a solve between two chunks. */
+class Gate {
+  private waiters: (() => void)[] = [];
+  readonly wait = (): Promise<void> =>
+    new Promise((resolve) => {
+      this.waiters.push(resolve);
+    });
+  get pending(): number {
+    return this.waiters.length;
+  }
+  open(): void {
+    const w = this.waiters;
+    this.waiters = [];
+    for (const r of w) r();
+  }
+}
+
+const tick = () => new Promise((r) => setTimeout(r, 0));
+
+async function until(cond: () => boolean): Promise<void> {
+  for (let i = 0; i < 500 && !cond(); i++) await tick();
+  expect(cond()).toBe(true);
+}
+
+/** Keep opening the gate until the host has processed everything. */
+async function drain(host: SolverHost, gate: Gate): Promise<void> {
+  let done = false;
+  const idle = host.idle().then(() => {
+    done = true;
+  });
+  while (!done) {
+    gate.open();
+    await tick();
+  }
+  await idle;
+}
+
+/** Mock backend factory that records whether each solve finished or was cancelled. */
+function spyingFactory(steps: number, outcomes: string[]): Factory {
+  return () => (stage, opts) => {
+    const be = new MockBackend(stage, { ...opts, steps });
+    const solve = be.solve.bind(be);
+    be.solve = async (hooks: SolveHooks) => {
+      const r = await solve(hooks);
+      outcomes.push(r ? 'done' : 'cancelled');
+      return r;
+    };
+    return Promise.resolve(be);
+  };
+}
 
 describe('SolverHost (worker message handler)', () => {
   it('init replies ready then a result for seq 0', async () => {
@@ -34,7 +97,7 @@ describe('SolverHost (worker message handler)', () => {
     expect(transfers.at(-1)!.length).toBe(3); // floating + utilization + displacement buffers
   });
 
-  it('a newer carve supersedes the running solve, but every diff is applied', async () => {
+  it('queued carves are all applied, only the newest is solved', async () => {
     const { host, out } = setup(4);
     const stage = buildDemoStage();
     const g = makeGrid(stage.grid);
@@ -54,12 +117,47 @@ describe('SolverHost (worker message handler)', () => {
     expect(r[0]!.floating.length).toBe(13 * 8 * 4);
   });
 
-  it('a carve arriving mid-solve cancels it at the next chunk', async () => {
+  it('a carve queued while init is loading is solved instead of seq 0', async () => {
     const { host, out } = setup(6);
     host.receive({ type: 'init', stage: buildDemoStage() });
     await Promise.resolve();
     host.receive({ type: 'carve', seq: 1, removed: [100], restored: [] });
     await host.idle();
+    expect(results(out).map((m) => m.seq)).toEqual([1]);
+  });
+
+  // T-311 #2: cancellation must actually interrupt a running solve
+  it('a carve arriving mid-solve: the running solve returns null and its seq never reports', async () => {
+    const gate = new Gate();
+    const outcomes: string[] = [];
+    let clock = 0;
+    const { host, out } = setup(spyingFactory(4, outcomes), { yieldFn: gate.wait, now: () => (clock += 100) });
+    host.receive({ type: 'init', stage: buildDemoStage() });
+    await until(() => gate.pending === 1); // seq 0 is paused between two chunks
+    expect(out.map((m) => m.type)).toEqual(['ready', 'progress']);
+    const mark = out.length;
+    host.receive({ type: 'carve', seq: 1, removed: [100], restored: [] });
+    await drain(host, gate);
+    expect(outcomes).toEqual(['cancelled', 'done']);
+    const later = out.slice(mark);
+    expect(later.filter((m) => 'seq' in m && m.seq === 0)).toEqual([]);
+    expect(results(out).map((m) => m.seq)).toEqual([1]);
+    expect(later.some((m) => m.type === 'progress' && m.seq === 1)).toBe(true);
+  });
+
+  it('cancel mid-solve stops it; the next carve is solved normally', async () => {
+    const gate = new Gate();
+    const outcomes: string[] = [];
+    const { host, out } = setup(spyingFactory(4, outcomes), { yieldFn: gate.wait });
+    host.receive({ type: 'init', stage: buildDemoStage() });
+    await until(() => gate.pending === 1);
+    host.receive({ type: 'cancel' });
+    await drain(host, gate);
+    expect(outcomes).toEqual(['cancelled']);
+    expect(results(out)).toEqual([]);
+    host.receive({ type: 'carve', seq: 1, removed: [100], restored: [] });
+    await drain(host, gate);
+    expect(outcomes).toEqual(['cancelled', 'done']);
     expect(results(out).map((m) => m.seq)).toEqual([1]);
   });
 
@@ -80,7 +178,29 @@ describe('SolverHost (worker message handler)', () => {
     expect(r.cases[0]!.maxUtilization).toBeGreaterThan(0);
   });
 
-  it('cancel stops the current solve without a result', async () => {
+  // T-311 #5: the host's solid mirror must follow each applied setSolid call
+  it('a rejected restore does not desync the solid mirror used for setSolid diffs', async () => {
+    let backend: StrictBackend | null = null;
+    const factory: Factory = () => (stage) => Promise.resolve((backend = new StrictBackend(stage)));
+    const { host, out } = setup(factory);
+    const stage = buildDemoStage();
+    host.receive({ type: 'init', stage });
+    host.receive({ type: 'carve', seq: 1, removed: [100], restored: [] });
+    await host.idle();
+    backend!.rejectNextRestore = true;
+    // the removal of 200 is applied, the restore of 100 is rejected
+    host.receive({ type: 'carve', seq: 2, removed: [200], restored: [100] });
+    await host.idle();
+    expect(out.find((m) => m.type === 'error')).toMatchObject({ seq: 2, message: 'restore rejected' });
+    expect(backend!.solid[200]).toBe(0);
+    // back to the authored solid set: both 100 and 200 must be restored in the backend
+    host.receive({ type: 'setSolid', seq: 3, solid: stage.solid });
+    await host.idle();
+    expect([...backend!.solid].every((v) => v === 1)).toBe(true);
+    expect(results(out).at(-1)!.seq).toBe(3);
+  });
+
+  it('cancel before the first solve starts suppresses its result', async () => {
     const { host, out } = setup(6);
     host.receive({ type: 'init', stage: buildDemoStage() });
     host.receive({ type: 'cancel' });
@@ -95,3 +215,37 @@ describe('SolverHost (worker message handler)', () => {
     expect(out).toEqual([{ type: 'error', seq: 7, message: 'solver not initialised (send init first)' }]);
   });
 });
+
+/** Applies a setSolid batch fully or throws without applying it (like fem-wasm's Session). */
+class StrictBackend implements Backend {
+  readonly info;
+  readonly solid: Uint8Array;
+  rejectNextRestore = false;
+
+  constructor(stage: Stage) {
+    const n = stage.grid[0] * stage.grid[1] * stage.grid[2];
+    this.info = { backend: 'mock' as const, elements: n, nodes: nodeCount(stage.grid), levels: 0 };
+    this.solid = new Uint8Array(n).fill(1);
+  }
+
+  setSolid(indices: Uint32Array, solid: boolean): void {
+    if (solid && this.rejectNextRestore) {
+      this.rejectNextRestore = false;
+      throw new Error('restore rejected');
+    }
+    for (const e of indices) this.solid[e] = solid ? 1 : 0;
+  }
+
+  solve(): Promise<SolveOutput> {
+    return Promise.resolve({
+      converged: true,
+      iterations: 0,
+      relResidual: 0,
+      cases: [],
+      floating: new Uint32Array(0),
+      loadsConnected: true,
+    });
+  }
+
+  dispose(): void {}
+}

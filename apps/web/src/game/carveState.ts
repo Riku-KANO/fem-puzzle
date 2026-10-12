@@ -106,21 +106,25 @@ export class CarveState {
     return removed;
   }
 
-  /** Close the open stroke; returns the committed entry, or null if it removed nothing. */
+  /**
+   * Close the open stroke; returns the committed entry, or null if it carved nothing — a
+   * no-op press never becomes a history entry and never clears the redo stack.
+   */
   endStroke(): CarveEntry | null {
     const stroke = this.stroke;
     this.stroke = null;
     this.strokeSet.clear();
-    if (!stroke || stroke.carved.length + stroke.floating.length === 0) return null;
+    if (!stroke || stroke.carved.length === 0) return null;
     this.history.push(stroke);
     return stroke;
   }
 
   /**
-   * Remove solver-reported floating cells. They are recorded with the open stroke, else with
-   * the newest history entry (so undoing that action brings them back), else — before any
-   * action, i.e. a stage authored with loose material — dropped without history.
-   * Never touches the redo stack. Returns the cells actually removed.
+   * Remove solver-reported floating cells. They are recorded with the open stroke if it has
+   * carved something (debris it caused), else with the newest history entry (so undoing that
+   * action brings them back), else — before any action, i.e. a stage authored with loose
+   * material — dropped without history. Never touches the redo stack. Returns the cells
+   * actually removed.
    */
   removeFloating(cells: ArrayLike<number>): number[] {
     const removed: number[] = [];
@@ -131,7 +135,8 @@ export class CarveState {
       removed.push(e);
     }
     this.count -= removed.length;
-    const entry = this.stroke ?? this.history.peek();
+    // an empty open stroke (press on nothing, or on protected cells) did not cause this debris
+    const entry = this.stroke && this.stroke.carved.length > 0 ? this.stroke : this.history.peek();
     if (entry) entry.floating.push(...removed);
     return removed;
   }
