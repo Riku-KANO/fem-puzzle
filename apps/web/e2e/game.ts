@@ -1,7 +1,8 @@
 // Page helpers shared by the e2e specs: open a stage, read the test hook, find a carvable
 // spot on screen (with the app's own picking), wait for solver results.
 
-import { expect, type Page, type TestInfo } from '@playwright/test';
+import { expect, type Locator, type Page, type TestInfo } from '@playwright/test';
+import type { Face, Vec3 } from '@stress-carve/protocol';
 import './hook.ts';
 
 export type BackendId = 'mock' | 'wasm';
@@ -18,6 +19,18 @@ const BACKGROUND: [number, number, number] = [0x15, 0x17, 0x1c];
  */
 export function stageUrl(stageId: string, backend: BackendId): string {
   return `/?backend=${backend}&stage=${stageId}#/stage/${stageId}`;
+}
+
+/** Title screen (T-304 `#/`); the router keeps `?backend=` for every stage opened from it. */
+export function titleUrl(backend: BackendId): string {
+  return `/?backend=${backend}#/`;
+}
+
+export type ScreenId = 'title' | 'select' | 'stage';
+
+/** T-304 sets `<html data-screen>` to the current screen. */
+export async function expectScreen(page: Page, screen: ScreenId): Promise<void> {
+  await expect(page.locator('html')).toHaveAttribute('data-screen', screen);
 }
 
 export interface Snapshot {
@@ -67,12 +80,21 @@ export function trackErrors(page: Page): string[] {
 /** Open a stage and wait until the solver has answered the initial `init`. */
 export async function openStage(page: Page, stageId: string, backend: BackendId): Promise<Snapshot> {
   await page.goto(stageUrl(stageId, backend));
+  return waitForStage(page, stageId);
+}
+
+/**
+ * Wait until `stageId` is the open stage (a fresh session after a route change) and its
+ * newest request has been answered.
+ */
+export async function waitForStage(page: Page, stageId: string): Promise<Snapshot> {
+  await expectScreen(page, 'stage');
   await expect(page.locator(VIEW_CANVAS)).toBeVisible();
-  await page.waitForFunction(() => {
+  await page.waitForFunction((id) => {
     const s = window.__stressCarve;
     const r = s?.controller.latestResult;
-    return !!s && !!r && r.seq === s.solver.latestSeq;
-  });
+    return !!s && s.controller.state.stage.id === id && !!r && r.seq === s.solver.latestSeq;
+  }, stageId);
   const snap = await snapshot(page);
   expect(snap.stageId).toBe(stageId);
   return snap;
