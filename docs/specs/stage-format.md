@@ -58,7 +58,11 @@ A stage is a single JSON file (`stages/<id>.json`). Source definitions live in
 - Without `cells`: every node on that boundary face of the **grid** that belongs to at
   least one initially-solid element is fixed.
 - With `cells`: only the nodes on the given face *of each listed cell* are fixed.
-- Supported cells are implicitly protected (treated as `keep`).
+- **Supported cells** of a support: the listed `cells`, or — without `cells` — every
+  initially solid cell touching that grid face (`Stage::support_cells` / `supportCells`).
+  Supported cells are implicitly protected (treated as `keep`), and connectivity to
+  supports is measured from exactly these cells (an element that merely shares a fixed
+  node with a supported cell is *not* supported).
 
 ### Load
 
@@ -75,7 +79,7 @@ A stage is a single JSON file (`stages/<id>.json`). Source definitions live in
 
 - *Volume fraction* = remaining solid count / initial solid count.
 - *Connectivity*: 6-neighbour (face) adjacency over solid voxels. Every load cell must
-  be in a component that contains a supported cell. Solid components with no
+  be in a component that contains a supported cell (see Support). Solid components with no
   support are "floating": excluded from analysis and dropped as debris.
 - *Strength*: max von Mises utilisation over solid, non-keep voxels ≤ 1.
 - *Stiffness* (optional): max load-point displacement ≤ `maxDisplacement`.
