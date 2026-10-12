@@ -43,7 +43,7 @@ use crate::hex8::Ke;
 use crate::operator::OperatorView;
 use crate::precond::Precond;
 use banded::BandedCholesky;
-use level::{ElemOp, Level};
+use level::{Bound, ElemOp, Level};
 use transfer::{Transfer, galerkin_add};
 
 /// Multigrid parameters.
@@ -110,10 +110,14 @@ pub struct Multigrid {
     /// Per level: element marked for re-assembly, and the marked list.
     mark: Vec<Vec<bool>>,
     list: Vec<Vec<usize>>,
+    /// Per level node marks and a shared node list (scratch for diagonal updates).
+    node_mark: Vec<Vec<bool>>,
+    node_list: Vec<usize>,
     stats: MgStats,
 }
 
 impl Multigrid {
+    /// Empty preconditioner; the hierarchy is built on the first [`Precond::rebuild`].
     pub fn new(opts: MgOptions) -> Self {
         Multigrid {
             opts,
@@ -121,10 +125,12 @@ impl Multigrid {
         }
     }
 
+    /// The parameters this preconditioner was created with.
     pub fn options(&self) -> &MgOptions {
         &self.opts
     }
 
+    /// Rebuild counters (for logs and tests).
     pub fn stats(&self) -> MgStats {
         self.stats
     }
@@ -144,7 +150,7 @@ impl Multigrid {
 
     /// Smallest and largest Jacobi damping over the free DOFs of each level.
     pub fn level_damping(&self) -> Vec<(f64, f64)> {
-        self.levels.iter().map(|l| l.damping).collect()
+        self.levels.iter().map(|l| l.damping()).collect()
     }
 
     /// (Re)create the hierarchy for grid `g`.
@@ -182,6 +188,11 @@ impl Multigrid {
             .map(|l| vec![false; l.grid.elements()])
             .collect();
         self.list = self.levels.iter().map(|_| Vec::new()).collect();
+        self.node_mark = self
+            .levels
+            .iter()
+            .map(|l| vec![false; l.grid.nodes()])
+            .collect();
         self.stats.setups += 1;
     }
 
@@ -229,9 +240,39 @@ impl Multigrid {
     }
 
     /// Re-assemble the marked coarse elements level by level and refactor the coarsest.
+    /// Update diagonal / mask / damping of the nodes of the marked elements of level `l`.
+    fn update_marked_nodes(&mut self, l: usize) {
+        let opts = self.opts;
+        let bound = if opts.l1_damping {
+            Bound::L1
+        } else {
+            Bound::Element
+        };
+        let g = self.levels[l].grid;
+        let mut nodes = std::mem::take(&mut self.node_list);
+        nodes.clear();
+        let nm = &mut self.node_mark[l];
+        for &e in &self.list[l] {
+            for n in g.element_nodes(e) {
+                if !nm[n] {
+                    nm[n] = true;
+                    nodes.push(n);
+                }
+            }
+        }
+        for &n in &nodes {
+            nm[n] = false;
+        }
+        self.levels[l].update_nodes(&nodes, opts.omega, opts.omega_cap, bound);
+        self.node_list = nodes;
+    }
+
     fn propagate(&mut self) {
         let opts = self.opts;
-        self.levels[0].update_diag(opts.omega, opts.omega_cap, opts.l1_damping);
+        let list0 = std::mem::take(&mut self.list[0]);
+        self.levels[0].refresh_all_free(&list0);
+        self.list[0] = list0;
+        self.update_marked_nodes(0);
         let mut rebuilt = 0;
         let mut children = [(0usize, 0usize); 8];
         let mut ke = [0.0f64; 576];
@@ -279,7 +320,7 @@ impl Multigrid {
                 };
                 rebuilt += 1;
             }
-            coarse.update_diag(opts.omega, opts.omega_cap, opts.l1_damping);
+            self.update_marked_nodes(l + 1);
         }
         let last = self.levels.len() - 1;
         for e in std::mem::take(&mut self.list[last]) {

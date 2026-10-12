@@ -14,8 +14,8 @@ use std::time::Instant;
 
 const GRIDS: [[usize; 3]; 4] = [[24, 8, 4], [32, 8, 8], [32, 12, 12], [40, 12, 12]];
 const TOLS: [f64; 2] = [1e-6, 1e-4];
-/// Preconditioners to compare (T-201 adds `Preconditioner::Multigrid`).
-const PRECONDS: [Preconditioner; 1] = [Preconditioner::Jacobi];
+/// Preconditioners to compare (Jacobi baseline vs multigrid).
+const PRECONDS: [Preconditioner; 2] = [Preconditioner::Jacobi, Preconditioner::Multigrid];
 const REPEATS: usize = 3;
 
 fn cantilever([nx, ny, nz]: [usize; 3]) -> Stage {
