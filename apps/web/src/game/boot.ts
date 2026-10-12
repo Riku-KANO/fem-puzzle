@@ -46,8 +46,9 @@ export function startGame(host: HTMLElement, stage: Stage, hud: HudModel, palett
       if (debugWindow().__stressCarve === session) delete debugWindow().__stressCarve;
     },
   };
-  // Dev-only console handle (T-306 may expose a test hook for e2e builds the same way).
-  if (import.meta.env.DEV) debugWindow().__stressCarve = session;
+  // Console handle in dev, test hook in the e2e build (`vite build --mode e2e`, T-306);
+  // never in production (MODE === 'production' folds this to false).
+  if (import.meta.env.DEV || import.meta.env.MODE === 'e2e') debugWindow().__stressCarve = session;
   return session;
 }
 
