@@ -29,11 +29,13 @@
     session: () => GameSession | null;
     /** load-test shows started so far (T-302 `loadTest.runs`) */
     loadTestRuns?: number;
+    /** a load test is showing the deformed part: hide the glow, it marks undeformed cells */
+    loadTestActive?: boolean;
     /** the result screen is open (T-301 `result.submission !== null`) */
     resultOpen?: boolean;
   }
 
-  let { stage, hud, session, loadTestRuns, resultOpen = false }: Props = $props();
+  let { stage, hud, session, loadTestRuns, loadTestActive = false, resultOpen = false }: Props = $props();
 
   const signals: TutorialSignals = $derived({
     solidCount: hud.solidCount,
@@ -129,13 +131,13 @@
   }
 
   $effect(() => {
-    const wanted = glowWanted && !resultOpen;
+    const wanted = glowWanted && !resultOpen && !loadTestActive;
     // re-evaluate whenever a result arrives or the solid set changes
     const maxU = hud.maxUtilization;
     void hud.solidCount;
     void hud.resultCurrent;
+    const s = session(); // tracked when the caller keeps the session in reactive state
     untrack(() => {
-      const s = session();
       if (glow && glowSession !== s) {
         glow.dispose();
         glow = null;

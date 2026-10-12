@@ -185,7 +185,14 @@
       <GameMenu resume={opened} onSelect={actions.select} onRestart={actions.restart} />
       <StagePanel title={stage.title} world={stage.world} targets={stage.targets} {hud} />
       <ThinWallBadge hud={thinWalls} />
-      <StageGuide {stage} {hud} session={() => game} resultOpen={result.submission !== null} />
+      <StageGuide
+        {stage}
+        {hud}
+        session={() => game}
+        loadTestRuns={loadTest.runs}
+        loadTestActive={loadTest.state !== 'idle'}
+        resultOpen={result.submission !== null}
+      />
     </div>
     {#if result.submission}
       <div class="result-slot">
