@@ -14,8 +14,9 @@ and its limits and baseline are in [`perf-budget.json`](perf-budget.json).
 > integrated, plus the T-204 bench. The machine had other build jobs running (load average
 > about 5), so expect ±20 % run-to-run.
 >
-> **Known issue:** the native build of the fine-level kernel got about 2× slower with T-201's
-> last mg change. WASM is not affected. See [Known issue](#known-issue-native-codegen-regression).
+> **Resolved (T-312, a3c9cc5):** the native 2× slowdown from T-201's last mg change was fat-LTO
+> inlining of `hex8::mul24`; it is `#[inline(never)]` now. See
+> [Known issue](#known-issue-native-codegen-regression).
 
 ## Measured, replacing the estimate table
 
@@ -196,6 +197,13 @@ with `node scripts/bench-gate.mjs --record`. It refuses to record results that b
   an example.
 
 ## Known issue: native codegen regression
+
+> **Status: resolved by T-312 (a3c9cc5).** Cause: under fat LTO `hex8::mul24` was inlined into
+> `Operator::apply`, where the vectoriser handled the 24 accumulators lane by lane and spilled
+> them on every column (≈2× inner-loop work). Fix: `#[inline(never)]` on `mul24`. Native 40×12×12
+> Jacobi warm is back to ≈95–115 ms, MG warm 10.4 ms; WASM unchanged (13.6 ms). The baseline in
+> `docs/perf-budget.json` was re-recorded after the fix. The original analysis follows.
+
 
 The gate caught a native-only slowdown when T-201's final commit `b97e3cd` was merged.
 `b97e3cd` brought "faster element loops" in `crates/fem/src/mg/level.rs`.
