@@ -15,6 +15,7 @@ import type { CarveState } from '../game/carveState.ts';
 import type { RemovalCause, ViewPort } from '../game/controller.ts';
 import { cellCoords } from '../game/grid.ts';
 import type { PaletteId } from './colormap.ts';
+import { LoadTest } from './deform/loadTest.ts';
 import { buildJigs, supportPatches } from './jigs.ts';
 import { raycastGrid, type VoxelHit } from './picking.ts';
 import { buildBlockMesh, timeUniform, VoxelMesh } from './voxelMesh.ts';
@@ -34,6 +35,10 @@ export class StageScene implements ViewPort {
   /** environment placeholder (bench) — T-307/T-310 replace its contents */
   readonly env = new THREE.Group();
   readonly voxels: VoxelMesh;
+  /** placeholder jigs (supports + load arrows named 'load'); T-302 animates the load jigs */
+  readonly jigs: THREE.Group;
+  /** 載荷テスト: deformation / crack / collapse show (T-302) */
+  readonly loadTest: LoadTest;
   /** cells that stop picking rays (T-303 narrows this for section/X-ray views) */
   pickFilter: (element: number) => boolean;
   /** latest current solver result (T-302 reads displacements from here) */
@@ -92,7 +97,8 @@ export class StageScene implements ViewPort {
     this.domain.add(this.brushCarve, this.brushProtected);
     this.scene.add(this.domain);
 
-    this.scene.add(buildJigs(stage));
+    this.jigs = buildJigs(stage);
+    this.scene.add(this.jigs);
     this.buildBench(size);
     this.scene.add(this.env);
 
@@ -108,6 +114,16 @@ export class StageScene implements ViewPort {
 
     this.pickFilter = (e) => state.solid[e] === 1 || state.block[e] === 1;
     this.reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    this.loadTest = new LoadTest({
+      state,
+      domain: this.domain,
+      voxels: this.voxels.group,
+      jigs: this.jigs,
+      palette,
+      reducedMotion: this.reducedMotion,
+      floorY: -BENCH_DROP / this.h,
+      loadCrackTexture: true,
+    });
 
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(host);
@@ -122,6 +138,7 @@ export class StageScene implements ViewPort {
   // --- ViewPort -------------------------------------------------------------
 
   solidChanged(cells: readonly number[]): void {
+    this.loadTest.cancel();
     this.voxels.markDirty(cells);
   }
 
@@ -131,6 +148,7 @@ export class StageScene implements ViewPort {
 
   setResult(result: ResultMsg): void {
     this.lastResult = result;
+    this.loadTest.setResult(result);
   }
 
   elementsRemoved(cells: readonly number[], cause: RemovalCause): void {
@@ -171,10 +189,12 @@ export class StageScene implements ViewPort {
 
   setPalette(id: PaletteId): void {
     this.voxels.setPalette(id);
+    this.loadTest.setPalette(id);
   }
 
   dispose(): void {
     this.renderer.setAnimationLoop(null);
+    this.loadTest.dispose();
     this.resizeObserver.disconnect();
     this.controls.dispose();
     this.voxels.dispose();
@@ -255,6 +275,7 @@ export class StageScene implements ViewPort {
     this.controls.update();
     this.onFrame?.();
     this.voxels.update();
+    this.loadTest.update(timeMs);
     this.renderer.render(this.scene, this.camera);
   }
 }

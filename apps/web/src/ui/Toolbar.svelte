@@ -9,9 +9,13 @@
     onBrush: (size: BrushSize) => void;
     onUndo: () => void;
     onRedo: () => void;
+    /** load test (T-302): a result exists / the test is running / start-stop */
+    canLoadTest?: boolean;
+    loadTestActive?: boolean;
+    onLoadTest?: () => void;
   }
 
-  let { hud, onBrush, onUndo, onRedo }: Props = $props();
+  let { hud, onBrush, onUndo, onRedo, canLoadTest = false, loadTestActive = false, onLoadTest }: Props = $props();
 
   const brushLabel = (s: BrushSize) => `${s}×${s}`;
 </script>
@@ -33,7 +37,15 @@
   <button disabled={!hud.canUndo} title="元に戻す(Ctrl/⌘+Z・右クリック)" onclick={onUndo}>↶ 元に戻す</button>
   <button disabled={!hud.canRedo} title="やり直す(Shift+Ctrl/⌘+Z)" onclick={onRedo}>↷ やり直す</button>
   <div class="sep"></div>
-  <button disabled title="載荷テスト(準備中)">載荷テスト</button>
+  <button
+    class:active={loadTestActive}
+    aria-pressed={loadTestActive}
+    disabled={!onLoadTest || (!canLoadTest && !loadTestActive)}
+    title={loadTestActive ? '載荷テストを終了(スペース)' : '載荷テスト(スペース)'}
+    onclick={() => onLoadTest?.()}
+  >
+    載荷テスト
+  </button>
   <button class="primary" disabled title="提出(準備中)">提出</button>
 </nav>
 

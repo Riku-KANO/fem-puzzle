@@ -6,6 +6,8 @@
   import { startGame, type GameSession } from './game/boot.ts';
   import { listStages, pickInitialStage } from './game/stages.ts';
   import type { PaletteId } from './render/colormap.ts';
+  import LoadTestBadge from './render/deform/LoadTestBadge.svelte';
+  import { IDLE_LOAD_TEST, type LoadTestStatus } from './render/deform/loadTest.ts';
   import { HudState, type ViewMode } from './ui/hudState.svelte.ts';
   import { shortcutFor } from './ui/shortcuts.ts';
   import SidePanel from './ui/SidePanel.svelte';
@@ -17,9 +19,11 @@
   const hud = new HudState();
   let viewport: HTMLDivElement;
   let game: GameSession | null = null;
+  let loadTest = $state<LoadTestStatus>(IDLE_LOAD_TEST);
 
   onMount(() => {
     game = startGame(viewport, stage, hud, hud.palette);
+    game.scene.loadTest.onStatus = (s) => (loadTest = s);
     return () => {
       game?.dispose();
       game = null;
@@ -37,6 +41,7 @@
     viewMode: (mode: ViewMode) => {
       hud.viewMode = mode; // section / X-ray rendering: T-303
     },
+    loadTest: () => game?.scene.loadTest.toggle({ current: hud.resultCurrent }),
   };
 
   function onKeydown(ev: KeyboardEvent): void {
@@ -55,7 +60,8 @@
         actions.redo();
         break;
       case 'loadTest':
-        break; // T-302
+        if (!ev.repeat) actions.loadTest();
+        break;
     }
   }
 </script>
@@ -72,8 +78,17 @@
       <SidePanel {hud} onPalette={actions.palette} onViewMode={actions.viewMode} />
     </div>
     <div class="bottom">
+      <LoadTestBadge status={loadTest} />
       <Toast {hud} />
-      <Toolbar {hud} onBrush={actions.brush} onUndo={actions.undo} onRedo={actions.redo} />
+      <Toolbar
+        {hud}
+        onBrush={actions.brush}
+        onUndo={actions.undo}
+        onRedo={actions.redo}
+        canLoadTest={hud.maxUtilization !== null}
+        loadTestActive={loadTest.state !== 'idle'}
+        onLoadTest={actions.loadTest}
+      />
     </div>
   </div>
 </main>
