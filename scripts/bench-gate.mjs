@@ -264,9 +264,12 @@ function printMarkdown(rows) {
   }
 }
 
+/** `HEAD` short hash, `+dirty` when the solver sources have uncommitted changes. */
 function gitHead() {
   const r = spawnSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: ROOT, encoding: 'utf8' });
-  return r.status === 0 ? r.stdout.trim() : null;
+  if (r.status !== 0) return null;
+  const diff = spawnSync('git', ['diff', '--quiet', 'HEAD', '--', 'crates', 'Cargo.lock'], { cwd: ROOT });
+  return `${r.stdout.trim()}${diff.status === 0 ? '' : '+dirty'}`;
 }
 
 function record(budget, reports) {
