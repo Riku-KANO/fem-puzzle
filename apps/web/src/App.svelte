@@ -6,6 +6,7 @@
   import { untrack } from 'svelte';
   import type { BrushSize } from './game/brush.ts';
   import { startGame, type GameSession } from './game/boot.ts';
+  import type { Axis } from './game/grid.ts';
   import { submitGate } from './game/judge/index.ts';
   import {
     browserRunnerEnv,
@@ -20,6 +21,7 @@
   import ThinWallBadge from './game/thickness/ThinWallBadge.svelte';
   import { ThinWallHud } from './game/thickness/thinWallHud.svelte.ts';
   import type { PaletteId } from './render/colormap.ts';
+  import { viewSpecFor } from './render/views/visibility.ts';
   import { HudState, type ViewMode } from './ui/hudState.svelte.ts';
   import { shortcutFor } from './ui/shortcuts.ts';
   import SidePanel from './ui/SidePanel.svelte';
@@ -32,6 +34,7 @@
   import MenuScreen from './ui/select/MenuScreen.svelte';
   import { HashRouter } from './ui/select/router.svelte.ts';
   import { screenOf } from './ui/select/routes.ts';
+  import { ViewSettings } from './ui/views/viewSettings.svelte.ts';
 
   const catalogue = listStages();
   const stageRefs = catalogue.stages.map((e) => ({ id: e.stage.id, world: e.stage.world }));
@@ -51,12 +54,14 @@
   let game = $state.raw<GameSession | null>(null);
   let opened = $state.raw<{ status: ResumeStatus }>({ status: 'fresh' });
   const runner = new StageRunner(progress, (s) => startGame(viewport, s, hud, hud.palette), browserRunnerEnv(window));
+  const views = new ViewSettings(untrack(() => stage.grid));
 
   /** Make `session` the current game (after open / restart). */
   function bindSession(session: GameSession): void {
     game = session;
     opened = { status: runner.resume };
     thinWalls.attach(session.scene);
+    views.setStage(session.controller.state.stage.grid);
   }
 
   $effect(() => {
@@ -94,10 +99,15 @@
       game?.scene.setPalette(id);
     },
     viewMode: (mode: ViewMode) => {
-      hud.viewMode = mode; // section / X-ray rendering: T-303
+      // a new section starts with its cut face turned towards the camera
+      if (mode === 'section' && hud.viewMode !== 'section' && game) views.flip = game.scene.views.facingFlip(views.axis);
+      hud.viewMode = mode;
     },
+    sectionAxis: (axis: Axis) => views.chooseAxis(axis, game?.scene.views.facingFlip(axis) ?? false),
     submit: () => {
-      if (game) result.open(game, hud);
+      if (!game) return;
+      hud.viewMode = 'normal'; // the result screen shows the whole part, not a section / X-ray
+      result.open(game, hud);
     },
     // Campaign (T-304). `clear`/`next`/`select` are the hooks for the result screen (T-301).
     select: () => router.navigate({ kind: 'select', world: stage.world }),
@@ -114,6 +124,11 @@
       router.navigate(id !== null ? { kind: 'stage', id } : { kind: 'select', world: stage.world });
     },
   };
+
+  // section / X-ray: push the view to the scene whenever the mode or its settings change
+  $effect(() => {
+    if (game) game.scene.views.set(viewSpecFor(hud.viewMode, views, game.controller.state.grid));
+  });
 
   function onKeydown(ev: KeyboardEvent): void {
     if (!game) return; // title / select screens: keep Space/Enter for buttons
@@ -159,7 +174,13 @@
       </div>
     {/if}
     <div class="right">
-      <SidePanel {hud} onPalette={actions.palette} onViewMode={actions.viewMode} />
+      <SidePanel
+        {hud}
+        onPalette={actions.palette}
+        onViewMode={actions.viewMode}
+        {views}
+        onSectionAxis={actions.sectionAxis}
+      />
     </div>
     <div class="bottom">
       <Toast {hud} />
