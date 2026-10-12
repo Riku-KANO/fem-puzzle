@@ -25,6 +25,8 @@ export interface ViewPort {
   elementsRemoved(cells: readonly number[], cause: RemovalCause): void;
   /** Hover preview of the brush; null hides it. */
   showBrush(selection: BrushSelection | null): void;
+  /** Cell hidden by the current view (T-303 section): the brush treats it as empty. */
+  isHidden?(element: number): boolean;
 }
 
 /** HUD fields the controller keeps up to date (a Svelte `$state` class in the app). */
@@ -159,6 +161,7 @@ export class GameController {
       keep: s.keep,
       block: s.block,
       strokeRemoved: s.strokeRemoved,
+      hidden: this.view.isHidden?.bind(this.view),
     });
   }
 
