@@ -1,0 +1,25 @@
+{
+  "name": "@stress-carve/deploy",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Ships apps/web/dist to Cloudflare (Workers + Static Assets) with the cf CLI. See README.md.",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "build:web": "pnpm --dir .. build",
+    "build": "cf build --mode production",
+    "check": "node check.mjs",
+    "test": "node --test \"*.test.mjs\"",
+    "dev": "cf dev",
+    "preview": "vite preview",
+    "deploy:dry-run": "pnpm build:web && cf build --mode production && node check.mjs --build-output && cf deploy --prebuilt --mode production --dry-run",
+    "deploy:cf": "pnpm build:web && cf build --mode production && node check.mjs --build-output && cf deploy --prebuilt --mode production"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "2.0.0-beta.sha-91c870c02",
+    "cf": "1.0.0-beta.14",
+    "vite": "8.3.4"
+  }
+}
