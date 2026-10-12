@@ -1,7 +1,7 @@
 ---
 id: T-302
 title: Load test (Space): exaggerated deformation animation and collapse feedback
-status: review
+status: done
 phase: 1
 depends: [T-202]
 owns:
