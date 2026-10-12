@@ -95,7 +95,17 @@ Pressing Space again ends the show at once. Any carve, undo or debris change als
 - The 10 % target makes W1 plates (4 voxels thick) bend by ≤ 0.4 voxel, which is subtle. If playtests want more, raise `TARGET_FRACTION` or base it on the span. Design doc: 数十〜数百倍, auto.
 - Breaks are capped at `MAX_BREAKS = 400` visual chips. Beyond that, cells only crack (the badge still shows the full count).
 - After a collapse the load jig stays where the load point was, rather than following the fallen piece.
-- Section/X-ray: once T-303 lands, the second lander adds `this.loadTest.sectionMask = () => this.views.sectionMask;` and `this.loadTest.hideWhilePlaying.push(this.views.ghost.group);` in the StageScene constructor.
 - T-310 adds `this.loadTest.loadJigs = () => this.workshop.loadJigs();` and `this.workshop.jigsLocked = () => this.loadTest.active;`.
 - T-306 could add an e2e step: press Space, then assert the badge and `scene.loadTest.current.state === 'playing'`, using `freezeAt` for deterministic screenshots. `apps/web/e2e` is not mine.
 - Multi-case (W4): only the critical case animates. Playing each case in turn would be a small extension of `start()`.
+
+### 2026-10-12 — T-302: merged main with T-301, T-303, T-306 and T-308
+
+- **T-303:** the StageScene constructor now sets `loadTest.sectionMask = () => views.sectionMask` and pushes `views.ghost.group` into `hideWhilePlaying`.
+  - In section view the load test bends only the cut part. The obstacle blocks and cut frame stay visible.
+  - Changing the section axis or position, or leaving section view, while the show plays ends it (mask compared each frame).
+  - Checked in the browser: the axis switch ends the show and restores voxel and ghost visibility. Also unit-tested.
+- **T-301:** both toolbar buttons are kept. 提出 now also stops the load test before the result screen opens.
+- **T-306:** the e2e smoke passes after merging main (2 passed, wasm spec skipped until T-205).
+- **Browser measurement caveat:** when the Browser pane is hidden, rAF stops, so a later in-browser check drove `scene.frame()` by hand. The 60 fps figure above was measured with the pane visible.
+- **T-310 (not landed yet):** add `this.loadTest.loadJigs = () => this.workshop.loadJigs();` and `this.workshop.jigsLocked = () => this.loadTest.active;` after `new LoadTest(...)`.
