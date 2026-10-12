@@ -1,7 +1,7 @@
 ---
 id: T-306
 title: Playwright E2E smoke tests wired into verify full
-status: review
+status: done
 phase: 1
 depends: [T-202]
 owns:
